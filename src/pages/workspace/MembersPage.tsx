@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -83,6 +83,7 @@ export function MembersPage() {
             <CardContent className="flex items-center justify-between gap-4 py-3.5">
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar className="h-9 w-9">
+                  {member.user.avatar_url && <AvatarImage src={member.user.avatar_url} alt={member.user.name} />}
                   <AvatarFallback className="bg-accent text-xs">{initials(member.user.name)}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">

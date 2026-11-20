@@ -26,8 +26,9 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
+import { ipAddressLabel, locationLabel } from '@/lib/infrastructure'
 import { formatMoney } from '@/lib/utils'
-import type { InfrastructureResource, IpAddress } from '@/types/api'
+import type { InfrastructureResource } from '@/types/api'
 
 const TYPES = ['server', 'vps', 'host', 'vm', 'container']
 const STATUSES = ['online', 'offline', 'maintenance', 'unknown']
@@ -53,12 +54,13 @@ export function InfrastructurePage() {
     { key: 'type', header: 'Type', cell: (r) => <span className="font-mono text-xs">{r.type}</span> },
     { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={r.status} /> },
     { key: 'provider', header: 'Provider', cell: (r) => <span>{r.provider ?? '—'}</span> },
+    { key: 'location', header: 'Location', cell: (r) => <span className="text-xs text-muted-foreground">{locationLabel(r.location)}</span> },
     {
       key: 'ips',
       header: 'IP addresses',
       cell: (r) => (
         <span className="font-mono text-xs text-muted-foreground">
-          {(r.ip_addresses ?? []).map((ip) => ip.address).join(', ') || '—'}
+          {(r.ip_addresses ?? []).map(ipAddressLabel).join(', ') || '—'}
         </span>
       ),
     },
@@ -127,11 +129,20 @@ function InfrastructureFormDialog({
   const [type, setType] = useState(editing?.type ?? 'server')
   const [name, setName] = useState(editing?.name ?? '')
   const [status, setStatus] = useState(editing?.status ?? 'unknown')
-  const [location, setLocation] = useState(editing?.location ?? '')
+  const [location, setLocation] = useState(
+    editing?.location
+      ? typeof editing.location === 'string'
+        ? editing.location
+        : editing.location.code ?? editing.location.city ?? ''
+      : '',
+  )
   const [provider, setProvider] = useState(editing?.provider ?? '')
   const [monthlyCost, setMonthlyCost] = useState(editing?.monthly_cost != null ? String(editing.monthly_cost) : '')
   const [currency, setCurrency] = useState(editing?.currency ?? 'EUR')
-  const [ips, setIps] = useState<IpAddress[]>(editing?.ip_addresses ?? [{ address: '', type: 'private' }])
+  const [ips, setIps] = useState<string[]>(() => {
+    const existing = (editing?.ip_addresses ?? []).map(ipAddressLabel).filter(Boolean)
+    return existing.length > 0 ? existing : ['']
+  })
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
@@ -144,7 +155,7 @@ function InfrastructureFormDialog({
         provider: provider || null,
         monthly_cost: monthlyCost ? Number(monthlyCost) : null,
         currency: currency || null,
-        ip_addresses: ips.filter((ip) => ip.address.trim() !== ''),
+        ip_addresses: ips.filter((ip) => ip.trim() !== ''),
       }
       return editing
         ? api.patch(`/v1/workspaces/${activeEntityId}/infrastructure/${editing.id}`, payload)
@@ -215,26 +226,16 @@ function InfrastructureFormDialog({
             {ips.map((ip, i) => (
               <div key={i} className="flex gap-2">
                 <Input
-                  value={ip.address}
-                  onChange={(e) => setIps((prev) => prev.map((p, j) => (j === i ? { ...p, address: e.target.value } : p)))}
+                  value={ip}
+                  onChange={(e) => setIps((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))}
                   placeholder="10.0.0.5"
                 />
-                <Select
-                  value={ip.type}
-                  onValueChange={(v) => setIps((prev) => prev.map((p, j) => (j === i ? { ...p, type: v } : p)))}
-                >
-                  <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">public</SelectItem>
-                    <SelectItem value="private">private</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Button variant="ghost" size="icon-sm" onClick={() => setIps((prev) => prev.filter((_, j) => j !== i))} aria-label="Remove">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             ))}
-            <Button variant="outline" size="sm" onClick={() => setIps((prev) => [...prev, { address: '', type: 'private' }])}>
+            <Button variant="outline" size="sm" onClick={() => setIps((prev) => [...prev, ''])}>
               <Plus /> Add IP
             </Button>
           </div>

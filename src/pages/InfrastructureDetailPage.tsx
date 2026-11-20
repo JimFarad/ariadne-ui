@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/ui/spinner'
 import { ErrorState } from '@/components/data/ErrorState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
+import { ipAddressLabel, locationLabel, sshKeyLabel, sshKeyName } from '@/lib/infrastructure'
 import { formatDateTime, formatMoney, shortId } from '@/lib/utils'
 import type { InfrastructureResource, PowerAction } from '@/types/api'
 
@@ -105,10 +106,11 @@ export function InfrastructureDetailPage() {
             <CardTitle>Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <DetailRow label="Location" value={resource.location} />
+            <DetailRow label="Type" value={resource.type} />
+            <DetailRow label="Location" value={locationLabel(resource.location)} />
             <DetailRow label="Provider" value={resource.provider} />
+            <DetailRow label="External ID" value={resource.external_id} />
             <DetailRow label="Monthly cost" value={formatMoney(resource.monthly_cost, resource.currency)} />
-            <DetailRow label="Currency" value={resource.currency} />
             <DetailRow label="Created" value={formatDateTime(resource.created_at)} />
           </CardContent>
         </Card>
@@ -123,9 +125,8 @@ export function InfrastructureDetailPage() {
             ) : (
               <ul className="space-y-1.5">
                 {resource.ip_addresses!.map((ip, i) => (
-                  <li key={i} className="flex items-center justify-between font-mono text-xs">
-                    <span>{ip.address}</span>
-                    <span className="text-muted-foreground">{ip.type}</span>
+                  <li key={i} className="font-mono text-xs">
+                    {ipAddressLabel(ip)}
                   </li>
                 ))}
               </ul>
@@ -144,14 +145,36 @@ export function InfrastructureDetailPage() {
               <ul className="space-y-1.5">
                 {resource.ssh_keys!.map((key, i) => (
                   <li key={i} className="text-sm">
-                    <span className="font-medium">{key.name}</span>
-                    <span className="ml-2 break-all font-mono text-xs text-muted-foreground">{key.public_key}</span>
+                    {sshKeyName(key) && <span className="font-medium">{sshKeyName(key)}</span>}
+                    <span className="ml-2 break-all font-mono text-xs text-muted-foreground">{sshKeyLabel(key)}</span>
                   </li>
                 ))}
               </ul>
             )}
           </CardContent>
         </Card>
+
+        {resource.metadata && Object.keys(resource.metadata).length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Metadata</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="space-y-2">
+                {Object.entries(resource.metadata).map(([key, value]) => {
+                  if (value === null || value === undefined || value === '') return null
+                  const display = typeof value === 'object' ? JSON.stringify(value) : String(value)
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-3 text-sm">
+                      <dt className="text-muted-foreground">{key.replace(/_/g, ' ')}</dt>
+                      <dd className="break-all text-right font-mono text-xs">{display}</dd>
+                    </div>
+                  )
+                })}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <ConfirmDialog

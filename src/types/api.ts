@@ -188,12 +188,20 @@ export type InfrastructureStatus = 'online' | 'offline' | 'maintenance' | 'unkno
 
 export interface IpAddress {
   address: string
-  type: string
+  type?: string
 }
 
 export interface SshKey {
-  name: string
-  public_key: string
+  name?: string
+  public_key?: string
+}
+
+export interface InfrastructureLocation {
+  code?: string | null
+  city?: string | null
+  country?: string | null
+  name?: string | null
+  description?: string | null
 }
 
 export interface InfrastructureResource {
@@ -201,13 +209,13 @@ export interface InfrastructureResource {
   type: InfrastructureType
   name: string
   status: InfrastructureStatus
-  location?: string | null
+  location?: InfrastructureLocation | string | null
   external_id?: string | null
   provider?: string | null
   realm_id?: string | null
-  metadata?: Record<string, unknown> | unknown[]
-  ip_addresses?: IpAddress[]
-  ssh_keys?: SshKey[]
+  metadata?: Record<string, unknown> | null
+  ip_addresses?: Array<string | IpAddress> | null
+  ssh_keys?: Array<string | SshKey> | null
   monthly_cost?: string | number | null
   currency?: string | null
   created_at?: string
