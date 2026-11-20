@@ -31,8 +31,8 @@ import { ErrorState } from '@/components/data/ErrorState'
 import { EmptyState } from '@/components/data/EmptyState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
-import { formatDate } from '@/lib/utils'
-import type { DnsCheckReport, DnsRecord, Domain } from '@/types/api'
+import { formatDate, formatDateTime } from '@/lib/utils'
+import type { DnsCheckReport, DnsDelegation, DnsRecord, Domain } from '@/types/api'
 
 const RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SRV', 'CAA', 'PTR']
 
@@ -52,11 +52,13 @@ const TYPES_WITH_PRIORITY = new Set(['MX', 'SRV'])
 
 export function DomainDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { activeEntityId } = useWorkspace()
+  const { activeEntityId, workspaces } = useWorkspace()
   const queryClient = useQueryClient()
   const [recordDialog, setRecordDialog] = useState(false)
   const [editingRecord, setEditingRecord] = useState<DnsRecord | null>(null)
   const [deletingRecord, setDeletingRecord] = useState<DnsRecord | null>(null)
+  const [delegationOpen, setDelegationOpen] = useState(false)
+  const [deletingDelegation, setDeletingDelegation] = useState<DnsDelegation | null>(null)
 
   const domainQuery = useQuery({
     queryKey: ['ws', activeEntityId, 'domains', id],
@@ -81,6 +83,20 @@ export function DomainDetailPage() {
   })
 
   const invalidateRecords = () => void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'domains', id, 'records'] })
+
+  const delegationsQuery = useQuery({
+    queryKey: ['ws', activeEntityId, 'domains', id, 'delegations'],
+    queryFn: () => api.get<DnsDelegation[]>(`/v1/workspaces/${activeEntityId}/domains/${id}/delegations`),
+    enabled: !!activeEntityId && !!id,
+  })
+
+  const deleteDelegationMutation = useMutation({
+    mutationFn: (delegationId: string) => api.delete(`/v1/workspaces/${activeEntityId}/domains/${id}/delegations/${delegationId}`),
+    onSuccess: () => {
+      setDeletingDelegation(null)
+      void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'domains', id, 'delegations'] })
+    },
+  })
 
   const domain = domainQuery.data
   const report = checkMutation.data
@@ -174,13 +190,51 @@ export function DomainDetailPage() {
         </CardContent>
       </Card>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>DNS delegation</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setDelegationOpen(true)}>
+              <Plus /> Delegate records
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Delegate a subset of this domain's records to another workspace. Matching records move there on the next provider sync.
+          </p>
+          {(delegationsQuery.data ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No delegations.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {(delegationsQuery.data ?? []).map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs">{d.pattern}</p>
+                    <p className="text-xs text-muted-foreground">
+                      → {workspaces.find((w) => w.id === d.target_entity_id)?.name ?? d.target_entity_id ?? '—'}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => setDeletingDelegation(d)} aria-label="Remove delegation">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {report && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>DNS drift report</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ReportSection title="Matched" records={report.matched} />
+            <p className="text-sm text-muted-foreground">
+              {report.matched ?? 0} record{(report.matched ?? 0) === 1 ? '' : 's'} match
+              {report.checked_at ? ` · checked ${formatDateTime(report.checked_at)}` : ''}
+            </p>
             <ReportSection title="Missing (in inventory, not resolving)" records={report.missing} />
             <ReportSection title="Unexpected (resolving, not in inventory)" records={report.unexpected} />
           </CardContent>
@@ -240,6 +294,25 @@ export function DomainDetailPage() {
         destructive
         loading={deleteMutation.isPending}
         onConfirm={() => deletingRecord && deleteMutation.mutate(deletingRecord.id)}
+      />
+
+      {delegationOpen && (
+        <DelegationDialog
+          domainId={id!}
+          onOpenChange={(open) => setDelegationOpen(open)}
+          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'domains', id, 'delegations'] })}
+        />
+      )}
+
+      <ConfirmDialog
+        open={deletingDelegation !== null}
+        onOpenChange={(open) => !open && setDeletingDelegation(null)}
+        title="Remove delegation"
+        description={`Remove delegation for ${deletingDelegation?.pattern}?`}
+        confirmLabel="Remove"
+        destructive
+        loading={deleteDelegationMutation.isPending}
+        onConfirm={() => deletingDelegation && deleteDelegationMutation.mutate(deletingDelegation.id)}
       />
     </div>
   )
@@ -366,6 +439,66 @@ function RecordFormDialog({
           <Button onClick={() => mutation.mutate()} disabled={!value.trim() || mutation.isPending}>
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DelegationDialog({
+  domainId,
+  onOpenChange,
+  onSaved,
+}: {
+  domainId: string
+  onOpenChange: (open: boolean) => void
+  onSaved: () => void
+}) {
+  const { activeEntityId, workspaces } = useWorkspace()
+  const [pattern, setPattern] = useState('')
+  const [entity, setEntity] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const targets = workspaces.filter((w) => w.id !== activeEntityId)
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/v1/workspaces/${activeEntityId}/domains/${domainId}/delegations`, { pattern, entity }),
+    onSuccess: () => { onOpenChange(false); onSaved() },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to create delegation.'),
+  })
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delegate DNS records</DialogTitle>
+          <DialogDescription>
+            Records whose name matches this pattern will be delegated to the selected workspace.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="del-pattern">Pattern</Label>
+            <Input id="del-pattern" value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="*._domainkey" />
+            <p className="text-xs text-muted-foreground">Exact name or wildcard, e.g. <span className="font-mono">*.sub</span></p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Target workspace</Label>
+            <Select value={entity} onValueChange={setEntity}>
+              <SelectTrigger><SelectValue placeholder="Select a workspace" /></SelectTrigger>
+              <SelectContent>
+                {targets.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!pattern.trim() || !entity || mutation.isPending}>
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Delegate
           </Button>
         </DialogFooter>
       </DialogContent>

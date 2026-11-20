@@ -1,5 +1,22 @@
 import type { InfrastructureLocation, IpAddress, SshKey } from '@/types/api'
 
+const INFRA_TYPE_LABELS: Record<string, string> = {
+  server: 'Server',
+  vps: 'VPS',
+  host: 'Host',
+  vm: 'VM',
+  container: 'Container',
+  tunnel: 'Cloudflare Tunnel',
+  worker: 'Cloudflare Worker',
+  worker_domain: 'Worker domain',
+  access_app: 'Access app',
+}
+
+/** Human-friendly label for an infrastructure resource type. */
+export function infraTypeLabel(type: string): string {
+  return INFRA_TYPE_LABELS[type] ?? type
+}
+
 /** Format an infrastructure `location` (string or object) for display. */
 export function locationLabel(loc: InfrastructureLocation | string | null | undefined): string {
   if (!loc) return '—'

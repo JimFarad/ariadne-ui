@@ -258,9 +258,20 @@ export interface DnsRecord {
 }
 
 export interface DnsCheckReport {
-  matched?: DnsRecord[]
+  domain?: string
+  checked_at?: string
+  matched?: number
+  live?: DnsRecord[]
   missing?: DnsRecord[]
   unexpected?: DnsRecord[]
+  [key: string]: unknown
+}
+
+export interface DnsDelegation {
+  id: string
+  pattern: string
+  target_entity_id?: string | null
+  created_at?: string
   [key: string]: unknown
 }
 

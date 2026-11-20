@@ -26,7 +26,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
-import { ipAddressLabel, locationLabel } from '@/lib/infrastructure'
+import { infraTypeLabel, ipAddressLabel, locationLabel } from '@/lib/infrastructure'
 import { formatMoney } from '@/lib/utils'
 import type { InfrastructureResource } from '@/types/api'
 
@@ -51,7 +51,7 @@ export function InfrastructurePage() {
         </Link>
       ),
     },
-    { key: 'type', header: 'Type', cell: (r) => <span className="font-mono text-xs">{r.type}</span> },
+    { key: 'type', header: 'Type', cell: (r) => <span className="text-xs">{infraTypeLabel(r.type)}</span> },
     { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={r.status} /> },
     { key: 'provider', header: 'Provider', cell: (r) => <span>{r.provider ?? '—'}</span> },
     { key: 'location', header: 'Location', cell: (r) => <span className="text-xs text-muted-foreground">{locationLabel(r.location)}</span> },

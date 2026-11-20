@@ -11,7 +11,7 @@ import { LoadingSpinner } from '@/components/ui/spinner'
 import { ErrorState } from '@/components/data/ErrorState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
-import { ipAddressLabel, locationLabel, sshKeyLabel, sshKeyName } from '@/lib/infrastructure'
+import { infraTypeLabel, ipAddressLabel, locationLabel, sshKeyLabel, sshKeyName } from '@/lib/infrastructure'
 import { formatDateTime, formatMoney, shortId } from '@/lib/utils'
 import type { InfrastructureResource, PowerAction } from '@/types/api'
 
@@ -137,7 +137,7 @@ export function InfrastructureDetailPage() {
             <CardTitle>Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <DetailRow label="Type" value={resource.type} />
+            <DetailRow label="Type" value={infraTypeLabel(resource.type)} />
             <DetailRow label="Location" value={locationLabel(resource.location)} />
             <DetailRow label="Provider" value={resource.provider} />
             <DetailRow label="External ID" value={resource.external_id} />

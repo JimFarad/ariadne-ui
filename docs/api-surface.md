@@ -74,6 +74,12 @@ inline the schema.
 > `location` is an **object**, and `ip_addresses` are **plain strings** — the
 > older docs showed `location: null` and `ip_addresses: [{address,type}]`.
 
+Infrastructure `type` is an enum that now also includes the Cloudflare edge
+resource kinds: `tunnel`, `worker`, `worker_domain`, and `access_app` (in
+addition to the classic server kinds like `server`/`vps`/`vm`/`container`).
+Their Cloudflare-specific fields arrive in `metadata` and are surfaced by the
+UI's generic metadata rendering.
+
 ### `GET /v1/workspaces/{entity}/domains`
 
 ```jsonc
@@ -105,6 +111,34 @@ inline the schema.
 Record types: `A, AAAA, CNAME, MX, TXT, NS, SRV, CAA, PTR`. Only `MX`/`SRV`
 carry `priority`. There is **no** `proxied` field on domain records (Cloudflare
 proxying lives in provider-resource metadata, not the domain-records API).
+
+### `POST …/domains/{domain}/check-dns`
+
+```jsonc
+{
+  "domain": "appoploo.com",
+  "checked_at": "…",
+  "matched": 12,           // number, not a list
+  "live": [ { "type": "A", "name": "…", "value": "…" } ],      // resolving now
+  "missing": [ { "type": "MX", "name": "…", "value": "…" } ],  // in inventory, not resolving
+  "unexpected": [ { "type": "TXT", "name": "…", "value": "…" } ] // resolving, not in inventory
+}
+```
+
+> `matched` is a **count** and `live` holds the matched records — the older
+> shape had `matched` as a record array.
+
+### DNS delegation
+
+```
+GET    /v1/workspaces/{entity}/domains/{domain}/delegations
+POST   /v1/workspaces/{entity}/domains/{domain}/delegations          { "pattern": "*._domainkey", "entity": "ent_…" }
+DELETE /v1/workspaces/{entity}/domains/{domain}/delegations/{delegation}
+```
+
+Delegation objects: `{ id, pattern, target_entity_id, created_at }`. `pattern`
+is an exact name or wildcard (`*.sub`); `target_entity_id` is the workspace the
+matching records are delegated to.
 
 ### `GET /v1/workspaces/{entity}/reports/summary`
 
