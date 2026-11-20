@@ -1,72 +1,111 @@
-import { Link } from 'react-router-dom'
-import { ArrowRight } from 'lucide-react'
+import { useState } from 'react'
+import { Navigate } from 'react-router-dom'
+import { Activity, ArrowRight, Cable, Layers, Loader2 } from 'lucide-react'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
 import { FullPageSpinner } from '@/components/ProtectedRoute'
-import { Navigate } from 'react-router-dom'
 
 const FEATURES = [
-  { title: 'Workspaces', description: 'Organize every system under one roof.' },
-  { title: 'Providers', description: 'One normalized inventory across vendors.' },
-  { title: 'Operations', description: 'Infrastructure, incidents and finance.' },
+  {
+    icon: Layers,
+    title: 'Workspaces & realms',
+    description: 'Every domain, server, project and invoice lives inside a workspace you control.',
+  },
+  {
+    icon: Cable,
+    title: 'Unified providers',
+    description: 'Cloudflare, Hetzner, Stripe and more — normalized into one calm inventory.',
+  },
+  {
+    icon: Activity,
+    title: 'Live operations',
+    description: 'Infrastructure, incidents, monitoring and finance in a single surface.',
+  },
 ]
 
 export function LandingPage() {
+  const { login } = useAuth()
+  const [signingIn, setSigningIn] = useState(false)
+
+  const handleSignIn = async () => {
+    setSigningIn(true)
+    try {
+      await login()
+    } catch {
+      setSigningIn(false)
+    }
+  }
+
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6">
-      {/* Subtle thread motif */}
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      {/* Background: subtle thread motif */}
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 h-full w-full opacity-[0.35]"
-        viewBox="0 0 1200 600"
+        className="pointer-events-none absolute inset-0 -z-10 h-full w-full text-border"
+        viewBox="0 0 1200 800"
         fill="none"
         preserveAspectRatio="xMidYMid slice"
       >
-        <path
-          d="M-40 480 C 220 520, 320 120, 640 180 S 1100 460, 1240 260"
-          stroke="var(--border)"
-          strokeWidth="1"
-        />
-        <path
-          d="M-40 520 C 260 560, 380 200, 700 250 S 1150 500, 1240 320"
-          stroke="var(--border)"
-          strokeWidth="1"
-          opacity="0.5"
-        />
+        <path d="M-40 220 C 220 260, 340 60, 620 120 S 1050 300, 1240 180" stroke="currentColor" strokeWidth="1" opacity="0.7" />
+        <path d="M-40 260 C 260 300, 400 120, 680 180 S 1100 360, 1240 240" stroke="currentColor" strokeWidth="1" opacity="0.4" />
+        <path d="M-40 300 C 300 340, 460 180, 740 240 S 1150 420, 1240 300" stroke="currentColor" strokeWidth="1" opacity="0.25" />
       </svg>
 
-      <div className="flex w-full max-w-md flex-col items-center text-center">
-        <div className="mb-8 flex flex-col items-center gap-4">
-          <BrandMark className="h-11 w-11" />
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">ARIADNE</h1>
-            <p className="mt-2 text-balance text-sm leading-relaxed text-muted-foreground">
-              The self-hosted management &amp; operations platform for navigating
-              complex systems.
-            </p>
+      {/* Top bar */}
+      <header className="flex h-16 items-center justify-between px-6 sm:px-10">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="h-7 w-7" />
+          <span className="text-[15px] font-semibold tracking-tight">ARIADNE</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleSignIn} disabled={signingIn}>
+          {signingIn && <Loader2 className="h-4 w-4 animate-spin" />}
+          Sign in
+        </Button>
+      </header>
+
+      {/* Hero */}
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="mx-auto max-w-2xl">
+          <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
+            Navigate complex systems with clarity.
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-balance text-base leading-relaxed text-muted-foreground sm:text-lg">
+            ARIADNE is the self-hosted management &amp; operations platform that
+            ties your workspaces, providers and operations into one calm,
+            precise surface.
+          </p>
+
+          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button size="lg" onClick={handleSignIn} disabled={signingIn} className="min-w-[220px]">
+              {signingIn ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              Sign in with SOLARIS
+            </Button>
           </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Authentication is handled by SOLARIS via OpenID Connect.
+          </p>
         </div>
 
-        <Button asChild size="lg" className="w-full sm:w-auto sm:min-w-[220px]">
-          <Link to="/login">
-            Sign in
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Authentication is handled by SOLARIS.
-        </p>
-
-        <div className="mt-12 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* Feature cards */}
+        <div className="mx-auto mt-20 grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
           {FEATURES.map((feature) => (
-            <div key={feature.title} className="rounded-lg border border-border bg-card/50 p-4">
-              <p className="text-sm font-medium">{feature.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{feature.description}</p>
+            <div
+              key={feature.title}
+              className="rounded-lg border border-border bg-card/60 p-5 text-left transition-colors hover:border-primary/40"
+            >
+              <feature.icon className="h-5 w-5 text-primary" />
+              <p className="mt-3 text-sm font-medium">{feature.title}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
             </div>
           ))}
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="flex items-center justify-center border-t border-border px-6 py-5 text-xs text-muted-foreground">
+        ARIADNE · self-hosted · open-source
+      </footer>
     </div>
   )
 }
