@@ -5,6 +5,8 @@ import { AuthProvider } from '@/context/AuthContext'
 import { WorkspaceProvider } from '@/context/WorkspaceContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { ProtectedRoute, FullPageSpinner } from '@/components/ProtectedRoute'
+import { RouteError } from '@/components/RouteError'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { LoginPage } from '@/pages/LoginPage'
 import { CallbackPage } from '@/pages/CallbackPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -59,11 +61,12 @@ const SyncsPage = lazy(() => import('@/pages/providers/ProvidersPage').then((m) 
 const DevPage = lazy(() => import('@/pages/DevPage').then((m) => ({ default: m.DevPage })))
 
 const router = createBrowserRouter([
-  { path: '/', element: <HomeRoute /> },
-  { path: '/login', element: <LoginPage /> },
-  { path: '/auth/callback', element: <CallbackPage /> },
+  { path: '/', element: <HomeRoute />, errorElement: <RouteError /> },
+  { path: '/login', element: <LoginPage />, errorElement: <RouteError /> },
+  { path: '/auth/callback', element: <CallbackPage />, errorElement: <RouteError /> },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteError />,
     children: [
       {
         element: <AppShell />,
@@ -129,11 +132,13 @@ const router = createBrowserRouter([
 export function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <WorkspaceProvider>
-          <RouterProvider router={router} />
-        </WorkspaceProvider>
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <RouterProvider router={router} />
+          </WorkspaceProvider>
+        </AuthProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   )
 }

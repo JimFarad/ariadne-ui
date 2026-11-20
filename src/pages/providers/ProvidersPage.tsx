@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Plus, RefreshCw } from 'lucide-react'
+import { ChevronDown, Loader2, Plus, RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -29,7 +30,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
 import { fetchCredentialSchema } from '@/lib/providers/credentials'
-import { formatDateTime } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 import type { Provider } from '@/types/api'
 
 type Row = Record<string, unknown> & { id: string }
@@ -129,6 +130,7 @@ function CreateConnectionDialog({
   const [region, setRegion] = useState('')
   const [credValues, setCredValues] = useState<Record<string, string>>({})
   const [advancedConfig, setAdvancedConfig] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const selectedProvider = providers.find((p) => p.slug === provider) ?? null
@@ -179,34 +181,37 @@ function CreateConnectionDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Connect provider</DialogTitle>
           <DialogDescription>Credentials are encrypted at rest and never returned by the API.</DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[60vh] gap-4 overflow-y-auto">
-          <div className="space-y-1.5">
-            <Label>Provider</Label>
-            <Select
-              value={provider}
-              onValueChange={(slug) => {
-                setProvider(slug)
-                setRegion('')
-                setCredValues({})
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
-              <SelectContent>
-                {providers.map((p) => (
-                  <SelectItem key={p.slug} value={p.slug}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="pc-name">Name</Label>
-            <Input id="pc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Cloudflare account" />
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Provider</Label>
+              <Select
+                value={provider}
+                onValueChange={(slug) => {
+                  setProvider(slug)
+                  setRegion('')
+                  setCredValues({})
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
+                <SelectContent>
+                  {providers.map((p) => (
+                    <SelectItem key={p.slug} value={p.slug}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="pc-name">Name</Label>
+              <Input id="pc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Cloudflare account" />
+            </div>
           </div>
 
           {selectedProvider && (selectedProvider.regions ?? []).length > 0 && (
@@ -223,73 +228,91 @@ function CreateConnectionDialog({
             </div>
           )}
 
-          {schemaLoading && (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading credential fields…
-            </p>
-          )}
+          {provider && <Separator />}
 
-          {schemaQuery.isError && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              <p>Could not load credential fields for this provider.</p>
-              <button type="button" className="mt-1 underline underline-offset-2" onClick={() => schemaQuery.refetch()}>
-                Retry
-              </button>
+          {provider && (
+            <div className="max-h-[38vh] space-y-4 overflow-y-auto pr-1">
+              {schemaLoading && (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading credential fields…
+                </p>
+              )}
+
+              {schemaQuery.isError && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                  <p>Could not load credential fields for this provider.</p>
+                  <button type="button" className="mt-1 underline underline-offset-2" onClick={() => schemaQuery.refetch()}>
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {schema && (
+                <>
+                  {schema.note && <p className="text-xs text-muted-foreground">{schema.note}</p>}
+                  {schema.fields.map((field) => (
+                    <div key={field.key} className="space-y-1.5">
+                      <Label htmlFor={`cred-${field.key}`}>
+                        {field.label}
+                        {field.required && <span className="ml-0.5 text-destructive">*</span>}
+                      </Label>
+                      {field.type === 'textarea' ? (
+                        <Textarea
+                          id={`cred-${field.key}`}
+                          value={credValues[field.key] ?? ''}
+                          onChange={(e) => setCred(field.key, e.target.value)}
+                          rows={4}
+                          className="font-mono text-xs"
+                          placeholder={field.placeholder}
+                        />
+                      ) : (
+                        <Input
+                          id={`cred-${field.key}`}
+                          type={field.type === 'password' ? 'password' : 'text'}
+                          value={credValues[field.key] ?? ''}
+                          onChange={(e) => setCred(field.key, e.target.value)}
+                          autoComplete="off"
+                          placeholder={field.placeholder}
+                        />
+                      )}
+                      {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
           )}
 
-          {schema && (
-            <>
-              {schema.note && <p className="text-xs text-muted-foreground">{schema.note}</p>}
-              {schema.fields.map((field) => (
-                <div key={field.key} className="space-y-1.5">
-                  <Label htmlFor={`cred-${field.key}`}>
-                    {field.label}
-                    {field.required && <span className="ml-0.5 text-destructive">*</span>}
-                  </Label>
-                  {field.type === 'textarea' ? (
-                    <Textarea
-                      id={`cred-${field.key}`}
-                      value={credValues[field.key] ?? ''}
-                      onChange={(e) => setCred(field.key, e.target.value)}
-                      rows={4}
-                      className="font-mono text-xs"
-                      placeholder={field.placeholder}
-                    />
-                  ) : (
-                    <Input
-                      id={`cred-${field.key}`}
-                      type={field.type === 'password' ? 'password' : 'text'}
-                      value={credValues[field.key] ?? ''}
-                      onChange={(e) => setCred(field.key, e.target.value)}
-                      autoComplete="off"
-                      placeholder={field.placeholder}
-                    />
-                  )}
-                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
-                </div>
-              ))}
-            </>
-          )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="pc-config">Advanced config (JSON, optional)</Label>
-            <Textarea
-              id="pc-config"
-              value={advancedConfig}
-              onChange={(e) => setAdvancedConfig(e.target.value)}
-              rows={2}
-              className="font-mono text-xs"
-              placeholder={'{\n  "account_id": "…"\n}'}
-            />
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAdvanced && 'rotate-180')} />
+              Advanced config
+            </button>
+            {showAdvanced && (
+              <Textarea
+                value={advancedConfig}
+                onChange={(e) => setAdvancedConfig(e.target.value)}
+                rows={2}
+                className="mt-2 font-mono text-xs"
+                placeholder={'{\n  "account_id": "…"\n}'}
+              />
+            )}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!provider || !name.trim() || requiredMissing || mutation.isPending}>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!provider || !name.trim() || schemaLoading || requiredMissing || mutation.isPending}
+          >
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Connect
           </Button>
