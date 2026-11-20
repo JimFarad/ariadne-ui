@@ -28,6 +28,7 @@ import { ErrorState } from '@/components/data/ErrorState'
 import { EmptyState } from '@/components/data/EmptyState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
+import { schemaForProvider } from '@/lib/providers/credentials'
 import { formatDateTime } from '@/lib/utils'
 import type { Provider } from '@/types/api'
 
@@ -126,27 +127,46 @@ function CreateConnectionDialog({
   const [provider, setProvider] = useState('')
   const [name, setName] = useState('')
   const [region, setRegion] = useState('')
-  const [credentials, setCredentials] = useState('{\n  "api_key": ""\n}')
+  const [credValues, setCredValues] = useState<Record<string, string>>({})
+  const [advancedConfig, setAdvancedConfig] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const selectedProvider = providers.find((p) => p.slug === provider) ?? null
+  const schema = provider ? schemaForProvider(provider) : null
+
+  const setCred = (key: string, value: string) => {
+    setCredValues((prev) => ({ ...prev, [key]: value }))
+  }
 
   const mutation = useMutation({
     mutationFn: () => {
-      let creds: unknown
-      try {
-        creds = JSON.parse(credentials)
-      } catch {
-        throw new Error('Credentials must be valid JSON.')
+      const credentials: Record<string, string> = {}
+      for (const [key, value] of Object.entries(credValues)) {
+        if (value !== '') credentials[key] = value
       }
+
+      let config: Record<string, unknown> | undefined
+      if (advancedConfig.trim() !== '') {
+        try {
+          config = JSON.parse(advancedConfig)
+        } catch {
+          throw new Error('Advanced config must be valid JSON.')
+        }
+      }
+
       return api.post(`/v1/workspaces/${activeEntityId}/provider-connections`, {
         provider,
         name,
         region: region || null,
-        credentials: creds,
+        credentials,
+        config,
       })
     },
     onSuccess: () => { onOpenChange(false); onSaved() },
     onError: (err) => setError(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : 'Connection failed.'),
   })
+
+  const requiredMissing = schema?.fields.some((f) => f.required && !credValues[f.key]?.trim()) ?? false
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
@@ -155,10 +175,17 @@ function CreateConnectionDialog({
           <DialogTitle>Connect provider</DialogTitle>
           <DialogDescription>Credentials are encrypted at rest and never returned by the API.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid max-h-[60vh] gap-4 overflow-y-auto">
           <div className="space-y-1.5">
             <Label>Provider</Label>
-            <Select value={provider} onValueChange={setProvider}>
+            <Select
+              value={provider}
+              onValueChange={(slug) => {
+                setProvider(slug)
+                setRegion('')
+                setCredValues({})
+              }}
+            >
               <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
               <SelectContent>
                 {providers.map((p) => (
@@ -167,23 +194,81 @@ function CreateConnectionDialog({
               </SelectContent>
             </Select>
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="pc-name">Name</Label>
-            <Input id="pc-name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input id="pc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Cloudflare account" />
           </div>
+
+          {selectedProvider && (selectedProvider.regions ?? []).length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Region</Label>
+              <Select value={region} onValueChange={setRegion}>
+                <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                <SelectContent>
+                  {selectedProvider.regions!.map((r) => (
+                    <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {schema && (
+            <>
+              {schema.note && <p className="text-xs text-muted-foreground">{schema.note}</p>}
+              {schema.fields.map((field) => (
+                <div key={field.key} className="space-y-1.5">
+                  <Label htmlFor={`cred-${field.key}`}>
+                    {field.label}
+                    {field.required && <span className="ml-0.5 text-destructive">*</span>}
+                  </Label>
+                  {field.type === 'textarea' ? (
+                    <Textarea
+                      id={`cred-${field.key}`}
+                      value={credValues[field.key] ?? ''}
+                      onChange={(e) => setCred(field.key, e.target.value)}
+                      rows={4}
+                      className="font-mono text-xs"
+                      placeholder={field.placeholder}
+                    />
+                  ) : (
+                    <Input
+                      id={`cred-${field.key}`}
+                      type={field.type === 'password' ? 'password' : 'text'}
+                      value={credValues[field.key] ?? ''}
+                      onChange={(e) => setCred(field.key, e.target.value)}
+                      autoComplete="off"
+                      placeholder={field.placeholder}
+                    />
+                  )}
+                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
+                </div>
+              ))}
+            </>
+          )}
+
+          {!schema && provider && (
+            <p className="text-xs text-muted-foreground">No credential schema for this provider yet.</p>
+          )}
+
           <div className="space-y-1.5">
-            <Label htmlFor="pc-region">Region (optional)</Label>
-            <Input id="pc-region" value={region} onChange={(e) => setRegion(e.target.value)} />
+            <Label htmlFor="pc-config">Advanced config (JSON, optional)</Label>
+            <Textarea
+              id="pc-config"
+              value={advancedConfig}
+              onChange={(e) => setAdvancedConfig(e.target.value)}
+              rows={2}
+              className="font-mono text-xs"
+              placeholder={'{\n  "account_id": "…"\n}'}
+            />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="pc-creds">Credentials (JSON)</Label>
-            <Textarea id="pc-creds" value={credentials} onChange={(e) => setCredentials(e.target.value)} rows={4} className="font-mono text-xs" />
-          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => mutation.mutate()} disabled={!provider || !name.trim() || mutation.isPending}>
+          <Button onClick={() => mutation.mutate()} disabled={!provider || !name.trim() || requiredMissing || mutation.isPending}>
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Connect
           </Button>

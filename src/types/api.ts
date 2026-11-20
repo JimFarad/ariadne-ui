@@ -401,7 +401,7 @@ export interface Provider {
   slug: string
   name: string
   category?: string
-  regions?: string[]
+  regions?: Array<{ slug: string; name: string }>
   status?: string
   [key: string]: unknown
 }
