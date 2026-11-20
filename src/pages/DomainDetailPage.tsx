@@ -117,6 +117,34 @@ export function DomainDetailPage() {
         {domain.expires_at && <span className="text-sm text-muted-foreground">expires {formatDate(String(domain.expires_at))}</span>}
       </div>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Domain details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+            <Detail label="Registrar" value={domain.registrar} />
+            <Detail label="Provider" value={domain.provider} />
+            <Detail label="Expires" value={domain.expires_at ? formatDate(String(domain.expires_at)) : undefined} />
+            <Detail label="Registered" value={domain.registered_at ? formatDate(String(domain.registered_at)) : undefined} />
+            <Detail label="Auto-renew" value={domain.auto_renew ? 'Enabled' : 'Disabled'} />
+            <Detail label="Transfer lock" value={domain.transfer_lock ? 'Locked' : 'Unlocked'} />
+            <div className="sm:col-span-2">
+              <p className="text-xs text-muted-foreground">Nameservers</p>
+              {(domain.nameservers ?? []).length > 0 ? (
+                <ul className="mt-1 space-y-0.5">
+                  {domain.nameservers!.map((ns, i) => (
+                    <li key={i} className="font-mono text-xs">{ns}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {report && (
         <Card className="mb-6">
           <CardHeader>
@@ -169,6 +197,15 @@ export function DomainDetailPage() {
         loading={deleteMutation.isPending}
         onConfirm={() => deletingRecord && deleteMutation.mutate(deletingRecord.id)}
       />
+    </div>
+  )
+}
+
+function Detail({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium">{value || '—'}</p>
     </div>
   )
 }

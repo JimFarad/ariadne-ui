@@ -30,7 +30,7 @@ import { EmptyState } from '@/components/data/EmptyState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
 import { fetchCredentialSchema } from '@/lib/providers/credentials'
-import { cn, formatDateTime } from '@/lib/utils'
+import { cn, formatDateTime, relativeTime } from '@/lib/utils'
 import type { Provider } from '@/types/api'
 
 type Row = Record<string, unknown> & { id: string }
@@ -83,15 +83,17 @@ export function ConnectionsPage() {
             <Card key={c.id}>
               <CardContent className="flex items-center justify-between gap-4 py-3.5">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-medium">{String(c.name ?? '')}</p>
                     <StatusBadge status={String(c.status ?? '')} />
+                    {c.health ? <StatusBadge status={String(c.health)} /> : null}
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {c.provider && typeof c.provider === 'object' && c.provider !== null
                       ? String((c.provider as Record<string, unknown>).name ?? (c.provider as Record<string, unknown>).slug)
                       : String(c.provider ?? '')}
                     {c.region ? ` · region ${String(c.region)}` : ''}
+                    {c.last_checked_at ? ` · checked ${relativeTime(String(c.last_checked_at))}` : ''}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => syncMutation.mutate(c.id)} disabled={syncMutation.isPending}>

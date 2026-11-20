@@ -141,6 +141,30 @@ export interface DashboardEntitySummary {
   [key: string]: unknown
 }
 
+export interface DashboardEvent {
+  id: string
+  action?: string | null
+  description?: string | null
+  created_at?: string
+  [key: string]: unknown
+}
+
+export interface DashboardSync {
+  id: string
+  status?: string
+  started_at?: string
+  finished_at?: string
+  [key: string]: unknown
+}
+
+export interface DashboardProvider {
+  id: string
+  provider?: string
+  name?: string
+  health?: string
+  [key: string]: unknown
+}
+
 export interface DashboardData {
   modules?: ModuleInfo[]
   entities?: Entity[]
@@ -149,9 +173,9 @@ export interface DashboardData {
     name: string
     type: string
     summary?: DashboardEntitySummary
-    providers?: unknown[]
-    recent_syncs?: unknown[]
-    recent_events?: unknown[]
+    providers?: DashboardProvider[]
+    recent_syncs?: DashboardSync[]
+    recent_events?: DashboardEvent[]
     [key: string]: unknown
   } | null
   [key: string]: unknown
@@ -197,8 +221,16 @@ export interface Domain {
   name: string
   registrar?: string | null
   expires_at?: string | null
+  registered_at?: string | null
+  renewal_at?: string | null
   status?: string
   auto_renew?: boolean
+  transfer_lock?: boolean
+  nameservers?: string[] | null
+  notes?: string | null
+  provider?: string | null
+  realm_id?: string | null
+  metadata?: Record<string, unknown>
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -577,6 +609,22 @@ export interface StoragePolicy {
 }
 
 export interface ReportSummary {
+  id?: string
+  name?: string
+  infrastructure?: { total?: number; online?: number; [key: string]: unknown }
+  domains?: { total?: number; expiring_soon?: number; [key: string]: unknown }
+  monitoring?: { total?: number; enabled?: number; down?: number; [key: string]: unknown }
+  finance?: {
+    invoices?: number
+    invoices_total?: number | string
+    expenses?: number
+    expenses_total?: number | string
+    budgets?: number
+    budgets_total?: number | string
+    [key: string]: unknown
+  }
+  members?: number
+  provider_connections?: number
   [key: string]: unknown
 }
 
