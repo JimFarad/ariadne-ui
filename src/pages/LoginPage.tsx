@@ -13,7 +13,7 @@ export function LoginPage() {
     document.title = 'Sign in — ARIADNE'
   }, [])
 
-  if (status === 'authenticated') return <Navigate to="/" replace />
+  if (status === 'authenticated') return <Navigate to="/dashboard" replace />
 
   const handleLogin = async () => {
     setSubmitting(true)

@@ -70,7 +70,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'global',
     label: '',
     items: [
-      { label: 'Home', path: '/', icon: Home },
+      { label: 'Home', path: '/dashboard', icon: Home },
       { label: 'Notifications', path: '/notifications', icon: Bell },
     ],
   },

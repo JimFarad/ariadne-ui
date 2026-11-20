@@ -19,7 +19,7 @@ authenticates against SOLARIS (OIDC + PKCE) and drives the ARIADNE JSON API
 ```bash
 npm install
 cp .env.example .env      # adjust if needed
-npm run dev               # http://localhost:5173 (or next free port)
+npm run dev               # http://localhost:5174
 ```
 
 The frontend calls the ARIADNE API directly at `VITE_API_BASE_URL`
@@ -41,10 +41,9 @@ secrets here.
 | `VITE_OIDC_POST_LOGOUT_REDIRECT_URI` | Post-logout redirect (defaults to origin). |
 | `VITE_APP_ENV` | Reported in the `Ariadne-Client-Environment` header. |
 
-> The redirect URI must be registered with SOLARIS. If Vite picks a port other
-> than `5173` (because it is busy), the callback origin changes — register the
-> URI matching the origin you actually use, or set `VITE_OIDC_REDIRECT_URI`
-> explicitly.
+> The redirect URI must be registered with SOLARIS. It is pinned to
+> `http://localhost:5174/auth/callback` (matching the dev port above); change
+> `VITE_OIDC_REDIRECT_URI` if you run on another origin.
 
 ## Authentication
 

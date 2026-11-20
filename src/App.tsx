@@ -8,6 +8,7 @@ import { ProtectedRoute, FullPageSpinner } from '@/components/ProtectedRoute'
 import { LoginPage } from '@/pages/LoginPage'
 import { CallbackPage } from '@/pages/CallbackPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { HomeRoute } from '@/pages/LandingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { WorkspaceOverviewPage } from '@/pages/workspace/OverviewPage'
@@ -58,6 +59,7 @@ const SyncsPage = lazy(() => import('@/pages/providers/ProvidersPage').then((m) 
 const DevPage = lazy(() => import('@/pages/DevPage').then((m) => ({ default: m.DevPage })))
 
 const router = createBrowserRouter([
+  { path: '/', element: <HomeRoute /> },
   { path: '/login', element: <LoginPage /> },
   { path: '/auth/callback', element: <CallbackPage /> },
   {
@@ -66,7 +68,7 @@ const router = createBrowserRouter([
       {
         element: <AppShell />,
         children: [
-          { index: true, element: <DashboardPage /> },
+          { path: 'dashboard', element: <DashboardPage /> },
           { path: 'notifications', element: <NotificationsPage /> },
           { path: 'workspace', element: <WorkspaceOverviewPage /> },
           { path: 'workspace/members', element: <MembersPage /> },

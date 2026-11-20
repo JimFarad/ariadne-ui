@@ -38,7 +38,7 @@ export function CallbackPage() {
       clearOidcState()
       try {
         await completeCallback(code, stored.verifier)
-        navigate('/', { replace: true })
+        navigate('/dashboard', { replace: true })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to complete sign-in.')
       }
