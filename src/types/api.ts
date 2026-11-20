@@ -386,6 +386,7 @@ export interface Invoice {
   amount?: string | number | null
   currency?: string | null
   status?: string
+  notes?: string | null
   due_at?: string | null
   created_at?: string
   updated_at?: string

@@ -98,7 +98,21 @@ export function IotPage() {
         { key: 'identifier', header: 'Identifier', cell: (r) => <span className="font-mono text-xs">{String(r.identifier ?? '—')}</span> },
         { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={String(r.status ?? '')} /> },
       ]}
-      fields={[text('name', 'Name', { required: true }), text('type', 'Type', { required: true }), text('identifier', 'Identifier'), text('status', 'Status')]}
+      fields={[
+        text('name', 'Name', { required: true }),
+        text('type', 'Type', { required: true }),
+        text('identifier', 'Identifier'),
+        {
+          name: 'status',
+          label: 'Status',
+          type: 'select',
+          options: [
+            { value: 'online', label: 'Online' },
+            { value: 'offline', label: 'Offline' },
+            { value: 'unknown', label: 'Unknown' },
+          ],
+        },
+      ]}
       emptyTitle="No IoT devices"
     />
   )
@@ -278,7 +292,8 @@ export function BudgetsPage() {
       columns={[
         { key: 'name', header: 'Name', cell: (r) => <span className="font-medium">{String(r.name ?? '')}</span> },
         { key: 'period', header: 'Period', cell: (r) => String(r.period ?? '—') },
-        { key: 'amount', header: 'Amount', cell: (r) => formatMoney(String(r.amount ?? ''), String(r.currency ?? '')) },
+        { key: 'amount', header: 'Budget', cell: (r) => formatMoney(String(r.amount ?? ''), String(r.currency ?? '')) },
+        { key: 'spent', header: 'Spent', cell: (r) => formatMoney(String(r.spent ?? ''), String(r.currency ?? '')) },
       ]}
       fields={[text('name', 'Name', { required: true }), text('period', 'Period'), text('currency', 'Currency', { placeholder: 'EUR' }), { name: 'amount', label: 'Amount', type: 'number', required: true }]}
       emptyTitle="No budgets"
@@ -298,12 +313,20 @@ export function ExpensesPage() {
       path={(e) => `/v1/workspaces/${e}/expenses`}
       rowKey={(r) => String(r.id)}
       columns={[
-        { key: 'description', header: 'Description', cell: (r) => <span className="font-medium">{String(r.description ?? r.id ?? '')}</span> },
-        { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={String(r.status ?? '')} /> },
+        { key: 'vendor', header: 'Vendor', cell: (r) => <span>{String(r.vendor ?? '—')}</span> },
+        { key: 'description', header: 'Description', cell: (r) => <span className="font-medium">{String(r.description ?? '') || '—'}</span> },
         { key: 'amount', header: 'Amount', cell: (r) => formatMoney(String(r.amount ?? ''), String(r.currency ?? '')) },
+        { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={String(r.status ?? '')} /> },
         { key: 'date', header: 'Date', cell: (r) => String(r.date ?? '—') },
       ]}
-      fields={[text('description', 'Description'), text('vendor', 'Vendor'), text('date', 'Date', { placeholder: 'YYYY-MM-DD' }), text('currency', 'Currency', { placeholder: 'EUR' }), { name: 'amount', label: 'Amount', type: 'number', required: true }]}
+      fields={[
+        { name: 'description', label: 'Description' },
+        text('vendor', 'Vendor id', { placeholder: 'Optional — vendor public id' }),
+        text('date', 'Date', { placeholder: 'YYYY-MM-DD' }),
+        text('currency', 'Currency', { placeholder: 'EUR' }),
+        { name: 'amount', label: 'Amount', type: 'number', required: true },
+        { name: 'tax_amount', label: 'Tax amount', type: 'number' },
+      ]}
       emptyTitle="No expenses"
     />
   )

@@ -21,6 +21,37 @@ const POWER_ACTIONS: Array<{ action: PowerAction; label: string }> = [
   { action: 'stop', label: 'Shutdown' },
 ]
 
+/** Metadata keys that duplicate the Details card — hide them to reduce noise. */
+const META_SKIP = new Set([
+  'location',
+  'location_city',
+  'location_country',
+  'location_description',
+  'monthly_cost',
+  'currency',
+  'provider_account_id',
+])
+
+/** Friendly labels + units for common provider metadata keys. */
+const META_LABELS: Record<string, string> = {
+  server_type: 'Server type',
+  cores: 'Cores',
+  memory_gb: 'Memory',
+  disk_gb: 'Disk',
+  public_ipv4: 'Public IPv4',
+  public_ipv6: 'Public IPv6',
+  private_ipv4: 'Private IPv4',
+  image: 'Image',
+  status: 'Provider status',
+  size: 'Size',
+  region: 'Region',
+}
+
+const META_UNITS: Record<string, string> = {
+  memory_gb: 'GB',
+  disk_gb: 'GB',
+}
+
 export function InfrastructureDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { activeEntityId } = useWorkspace()
@@ -157,20 +188,26 @@ export function InfrastructureDetailPage() {
         {resource.metadata && Object.keys(resource.metadata).length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Metadata</CardTitle>
+              <CardTitle>Specs</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="space-y-2">
-                {Object.entries(resource.metadata).map(([key, value]) => {
-                  if (value === null || value === undefined || value === '') return null
-                  const display = typeof value === 'object' ? JSON.stringify(value) : String(value)
-                  return (
-                    <div key={key} className="flex items-center justify-between gap-3 text-sm">
-                      <dt className="text-muted-foreground">{key.replace(/_/g, ' ')}</dt>
-                      <dd className="break-all text-right font-mono text-xs">{display}</dd>
-                    </div>
-                  )
-                })}
+                {Object.entries(resource.metadata)
+                  .filter(([key]) => !META_SKIP.has(key))
+                  .slice(0, 14)
+                  .map(([key, value]) => {
+                    if (value === null || value === undefined || value === '') return null
+                    const display = typeof value === 'object' ? JSON.stringify(value) : String(value)
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-3 text-sm">
+                        <dt className="text-muted-foreground">{META_LABELS[key] ?? key.replace(/_/g, ' ')}</dt>
+                        <dd className="break-all text-right font-mono text-xs">
+                          {display}
+                          {META_UNITS[key] ? ` ${META_UNITS[key]}` : ''}
+                        </dd>
+                      </div>
+                    )
+                  })}
               </dl>
             </CardContent>
           </Card>
