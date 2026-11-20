@@ -251,6 +251,7 @@ export interface DnsRecord {
   value: string
   ttl?: number | null
   priority?: number | null
+  comment?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -27,12 +28,27 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { ConfirmDialog } from '@/components/forms/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/spinner'
 import { ErrorState } from '@/components/data/ErrorState'
+import { EmptyState } from '@/components/data/EmptyState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
 import { formatDate } from '@/lib/utils'
 import type { DnsCheckReport, DnsRecord, Domain } from '@/types/api'
 
-const RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SRV', 'CAA']
+const RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'NS', 'SRV', 'CAA', 'PTR']
+
+const VALUE_PLACEHOLDERS: Record<string, string> = {
+  A: '192.0.2.1',
+  AAAA: '2001:db8::1',
+  CNAME: 'target.example.com',
+  MX: 'mail.example.com',
+  TXT: 'text value',
+  NS: 'ns1.example.com',
+  SRV: 'target.example.com',
+  CAA: '0 issue "letsencrypt.org"',
+  PTR: 'hostname.example.com',
+}
+
+const TYPES_WITH_PRIORITY = new Set(['MX', 'SRV'])
 
 export function DomainDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -68,11 +84,24 @@ export function DomainDetailPage() {
 
   const domain = domainQuery.data
   const report = checkMutation.data
+  const records = recordsQuery.data ?? []
 
-  const columns: Column<DnsRecord>[] = [
-    { key: 'type', header: 'Type', cell: (r) => <span className="font-mono text-xs">{r.type}</span> },
+  const groups = useMemo(() => {
+    const map = new Map<string, DnsRecord[]>()
+    for (const record of records) {
+      const type = record.type
+      if (!map.has(type)) map.set(type, [])
+      map.get(type)!.push(record)
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
+  }, [records])
+
+  const recordColumns = (showPriority: boolean): Column<DnsRecord>[] => [
     { key: 'name', header: 'Name', cell: (r) => <span className="font-mono text-xs">{r.name}</span> },
     { key: 'value', header: 'Value', cell: (r) => <span className="break-all font-mono text-xs">{r.value}</span> },
+    ...(showPriority
+      ? [{ key: 'priority', header: 'Priority', cell: (r: DnsRecord) => <span>{r.priority ?? '—'}</span> } as Column<DnsRecord>]
+      : []),
     { key: 'ttl', header: 'TTL', cell: (r) => <span>{r.ttl ?? '—'}</span> },
     {
       key: '__actions',
@@ -167,16 +196,31 @@ export function DomainDetailPage() {
         }
       />
 
-      <DataTable
-        columns={columns}
-        data={recordsQuery.data ?? []}
-        rowKey={(r) => r.id}
-        loading={recordsQuery.isLoading}
-        error={recordsQuery.error}
-        onRetry={recordsQuery.refetch}
-        emptyTitle="No records"
-        emptyDescription="Add a DNS record."
-      />
+      {recordsQuery.isLoading ? (
+        <LoadingSpinner />
+      ) : recordsQuery.error ? (
+        <ErrorState error={recordsQuery.error} onRetry={recordsQuery.refetch} />
+      ) : records.length === 0 ? (
+        <EmptyState title="No records" description="Add a DNS record." />
+      ) : (
+        <div className="space-y-6">
+          {groups.map(([type, recs]) => (
+            <div key={type}>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs font-semibold">{type}</span>
+                <span className="text-xs text-muted-foreground">
+                  {recs.length} record{recs.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <DataTable
+                columns={recordColumns(TYPES_WITH_PRIORITY.has(type))}
+                data={recs}
+                rowKey={(r) => r.id}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       {recordDialog && (
         <RecordFormDialog
@@ -245,11 +289,22 @@ function RecordFormDialog({
   const [name, setName] = useState(editing?.name ?? '')
   const [value, setValue] = useState(editing?.value ?? '')
   const [ttl, setTtl] = useState(editing?.ttl != null ? String(editing.ttl) : '3600')
+  const [priority, setPriority] = useState(editing?.priority != null ? String(editing.priority) : '')
+  const [comment, setComment] = useState(editing?.comment ?? '')
   const [error, setError] = useState<string | null>(null)
+
+  const showPriority = TYPES_WITH_PRIORITY.has(type)
 
   const mutation = useMutation({
     mutationFn: () => {
-      const payload = { type, name, value, ttl: ttl ? Number(ttl) : undefined }
+      const payload = {
+        type,
+        name,
+        value,
+        ttl: ttl ? Number(ttl) : undefined,
+        priority: showPriority && priority ? Number(priority) : undefined,
+        comment: comment || undefined,
+      }
       return editing
         ? api.patch(`/v1/workspaces/${activeEntityId}/domains/${domainId}/records/${editing.id}`, payload)
         : api.post(`/v1/workspaces/${activeEntityId}/domains/${domainId}/records`, payload)
@@ -281,14 +336,29 @@ function RecordFormDialog({
               <Input id="rec-ttl" type="number" value={ttl} onChange={(e) => setTtl(e.target.value)} />
             </div>
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="rec-name">Name</Label>
             <Input id="rec-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="@" />
           </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="rec-value">Value</Label>
-            <Input id="rec-value" value={value} onChange={(e) => setValue(e.target.value)} />
+            <Input id="rec-value" value={value} onChange={(e) => setValue(e.target.value)} placeholder={VALUE_PLACEHOLDERS[type]} />
           </div>
+
+          {showPriority && (
+            <div className="space-y-1.5">
+              <Label htmlFor="rec-priority">Priority</Label>
+              <Input id="rec-priority" type="number" value={priority} onChange={(e) => setPriority(e.target.value)} placeholder="10" />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="rec-comment">Comment (optional)</Label>
+            <Textarea id="rec-comment" value={comment} onChange={(e) => setComment(e.target.value)} rows={2} />
+          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
