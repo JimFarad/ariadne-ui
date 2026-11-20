@@ -1,29 +1,16 @@
 /**
- * Credential field schemas per provider, sourced from the backend's
- * `docs/providers.md` research register and driver implementations.
+ * Credential field schemas per provider.
  *
- * The ARIADNE API exposes the provider catalogue (`GET /v1/providers`) with
- * `regions`, but does not expose credential field schemas — so the schema is
- * maintained here and used to render the connection form per provider.
+ * The preferred source is the API itself (`GET /v1/providers` exposes a
+ * `credential_schema` per provider — see the backend doc
+ * `docs/provider-credential-schema-api.md`). The map below is only a temporary
+ * fallback used until the API exposes the schema; once it does, the API
+ * schema always wins and this map can be deleted.
  */
 
-export interface CredentialField {
-  key: string
-  label: string
-  type: 'text' | 'password' | 'textarea'
-  required?: boolean
-  hint?: string
-  placeholder?: string
-}
+import type { Provider, ProviderCredentialField, ProviderCredentialSchema } from '@/types/api'
 
-export interface ProviderCredentialSchema {
-  fields: CredentialField[]
-  note?: string
-  /** Advanced free-form config keys (sent under `config`, not credentials). */
-  configHint?: string
-}
-
-const oauth = (): CredentialField[] => [
+const oauth = (): ProviderCredentialField[] => [
   { key: 'client_id', label: 'Client ID', type: 'text', required: true },
   { key: 'client_secret', label: 'Client secret', type: 'password', required: true },
   { key: 'refresh_token', label: 'Refresh token', type: 'password', required: true },
@@ -101,6 +88,13 @@ export const PROVIDER_CREDENTIALS: Record<string, ProviderCredentialSchema> = {
   },
 }
 
-export function schemaForProvider(slug: string): ProviderCredentialSchema | null {
-  return PROVIDER_CREDENTIALS[slug] ?? null
+export function schemaForProvider(provider: Provider | null | undefined): ProviderCredentialSchema | null {
+  if (!provider) return null
+
+  const fromApi = provider.credential_schema
+  if (fromApi && Array.isArray(fromApi.fields) && fromApi.fields.length > 0) {
+    return fromApi
+  }
+
+  return PROVIDER_CREDENTIALS[provider.slug] ?? null
 }

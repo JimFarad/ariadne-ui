@@ -132,7 +132,7 @@ function CreateConnectionDialog({
   const [error, setError] = useState<string | null>(null)
 
   const selectedProvider = providers.find((p) => p.slug === provider) ?? null
-  const schema = provider ? schemaForProvider(provider) : null
+  const schema = schemaForProvider(selectedProvider)
 
   const setCred = (key: string, value: string) => {
     setCredValues((prev) => ({ ...prev, [key]: value }))

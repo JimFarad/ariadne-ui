@@ -396,6 +396,20 @@ export interface InvoiceIntakeMessage {
 
 /* Providers */
 
+export interface ProviderCredentialField {
+  key: string
+  label: string
+  type: 'text' | 'password' | 'textarea'
+  required?: boolean
+  hint?: string
+  placeholder?: string
+}
+
+export interface ProviderCredentialSchema {
+  fields: ProviderCredentialField[]
+  note?: string
+}
+
 export interface Provider {
   id?: string
   slug: string
@@ -403,6 +417,7 @@ export interface Provider {
   category?: string
   regions?: Array<{ slug: string; name: string }>
   status?: string
+  credential_schema?: ProviderCredentialSchema
   [key: string]: unknown
 }
 
