@@ -50,6 +50,7 @@ const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage').then((m
 const SecurityPage = lazy(() => import('@/pages/SecurityPage').then((m) => ({ default: m.SecurityPage })))
 const InvoicesPage = lazy(() => import('@/pages/finance/InvoicesPage').then((m) => ({ default: m.InvoicesPage })))
 const IntakePage = lazy(() => import('@/pages/finance/IntakePage').then((m) => ({ default: m.IntakePage })))
+const TransactionsPage = lazy(() => import('@/pages/finance/TransactionsPage').then((m) => ({ default: m.TransactionsPage })))
 const TokensPage = lazy(() => import('@/pages/TokensPage').then((m) => ({ default: m.TokensPage })))
 const ReportsPage = lazy(() => import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const DeliveriesPage = lazy(() => import('@/pages/email/DeliveriesPage').then((m) => ({ default: m.DeliveriesPage })))
@@ -101,6 +102,7 @@ const router = createBrowserRouter([
           { path: 'finance/invoices', element: <InvoicesPage /> },
           { path: 'finance/expenses', element: <ExpensesPage /> },
           { path: 'finance/budgets', element: <BudgetsPage /> },
+          { path: 'finance/transactions', element: <TransactionsPage /> },
           { path: 'finance/intake', element: <IntakePage /> },
           { path: 'email/senders', element: <SendersPage /> },
           { path: 'email/templates', element: <TemplatesPage /> },

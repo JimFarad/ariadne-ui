@@ -165,14 +165,30 @@ matching records are delegated to.
 > Note `provider` is an **object** on connections, but a **string slug** on
 > accounts and resources.
 
+### Applications / services (GitHub mirror)
+
+`GET …/services` returns `{ id, name, type, status, description, provider (slug), metadata }`.
+GitHub repositories and organizations are mirrored here as `type=repository` /
+`type=organization`, with `metadata.language`, `metadata.html_url` and
+`metadata.private`. Issues and pull requests stay in `provider-resources` only.
+
 ### Finance serialize shapes
 
 - Vendor: `{ id, name, email, website }`
 - Invoice: `{ id, invoice_number, vendor (name), customer, issue_date, due_date, currency, net_amount, tax_amount, gross_amount, status, notes }`
 - Expense: `{ id, vendor (name), date, currency, amount, tax_amount, description, status }`
 - Budget: `{ id, name, period, currency, amount, spent }`
+- Transaction: `{ id, type, description, currency, amount, net_amount, status, occurred_at, provider (slug), metadata }`
 
 `PATCH /invoices/{id}` accepts **only** `status`, `due_date`, `notes`.
+
+### `GET /v1/workspaces/{entity}/transactions`
+
+Money movement mirrored from Stripe into a finance ledger. Filters: `?type=`
+and `?status=` (exact match). Types: `charge`, `balance_transaction`,
+`payment_intent`, `payout`, `refund`, `dispute`. Amounts are in **major units**
+(euros/dollars, converted from cents); balance transactions can be negative
+(fees).
 
 ### `GET /v1/status` (authenticated diagnostics)
 

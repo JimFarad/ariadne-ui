@@ -317,8 +317,11 @@ export interface IncidentUpdate {
 export interface Service {
   id: string
   name: string
+  type?: string
   status?: string
   description?: string | null
+  provider?: string | null
+  metadata?: Record<string, unknown> | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -425,6 +428,20 @@ export interface Budget {
   period?: string | null
   created_at?: string
   updated_at?: string
+  [key: string]: unknown
+}
+
+export interface Transaction {
+  id: string
+  type?: string
+  description?: string | null
+  currency?: string | null
+  amount?: string | number | null
+  net_amount?: string | number | null
+  status?: string
+  occurred_at?: string | null
+  provider?: string | null
+  metadata?: Record<string, unknown> | null
   [key: string]: unknown
 }
 

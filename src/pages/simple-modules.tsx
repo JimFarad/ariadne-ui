@@ -1,3 +1,4 @@
+import { ExternalLink } from 'lucide-react'
 import { CrudPage, type FieldDef } from '@/components/forms/CrudPage'
 import { StatusBadge } from '@/components/StatusBadge'
 import { formatDateTime, formatMoney } from '@/lib/utils'
@@ -11,6 +12,23 @@ const text = (name: string, label: string, extra: Partial<FieldDef> = {}): Field
   ...extra,
 })
 
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  service: 'Service',
+  repository: 'Repository',
+  organization: 'Organization',
+}
+
+function serviceTypeLabel(type: string): string {
+  return SERVICE_TYPE_LABELS[type] ?? type
+}
+
+/** Safely read a string from a row's `metadata` object. */
+function meta(row: Row, key: string): string {
+  const m = row.metadata
+  if (m && typeof m === 'object') return String((m as Record<string, unknown>)[key] ?? '')
+  return ''
+}
+
 /* ------------------------------------------------------------------ */
 /* Services (applications)                                            */
 /* ------------------------------------------------------------------ */
@@ -19,18 +37,50 @@ export function ServicesPage() {
     <CrudPage<Row>
       title="Services"
       noun="Service"
-      description="The application and service inventory."
+      description="Applications, GitHub repositories and organizations."
       path={(e) => `/v1/workspaces/${e}/services`}
       rowKey={(r) => String(r.id)}
       columns={[
-        { key: 'name', header: 'Name', cell: (r) => <span className="font-medium">{String(r.name ?? '')}</span> },
-        { key: 'type', header: 'Type', cell: (r) => String(r.type ?? '—') },
+        {
+          key: 'name',
+          header: 'Name',
+          cell: (r) => {
+            const url = meta(r, 'html_url')
+            const name = String(r.name ?? '')
+            return url ? (
+              <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium hover:underline">
+                {name}
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+              </a>
+            ) : (
+              <span className="font-medium">{name}</span>
+            )
+          },
+        },
+        { key: 'type', header: 'Type', cell: (r) => <span className="text-xs">{serviceTypeLabel(String(r.type ?? ''))}</span> },
+        {
+          key: 'language',
+          header: 'Language',
+          cell: (r) => {
+            const language = meta(r, 'language')
+            return language ? <span className="font-mono text-xs text-muted-foreground">{language}</span> : <span className="text-muted-foreground">—</span>
+          },
+        },
+        {
+          key: 'visibility',
+          header: 'Visibility',
+          cell: (r) => {
+            const priv = meta(r, 'private')
+            if (priv === '') return <span className="text-muted-foreground">—</span>
+            return <span className="text-xs">{priv === 'true' || priv === '1' ? 'Private' : 'Public'}</span>
+          },
+        },
         { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={String(r.status ?? '')} /> },
         { key: 'description', header: 'Description', cell: (r) => <span className="text-muted-foreground">{String(r.description ?? '') || '—'}</span> },
       ]}
       fields={[text('name', 'Name', { required: true }), text('type', 'Type'), text('status', 'Status'), { name: 'description', label: 'Description', type: 'textarea' }]}
       emptyTitle="No services"
-      emptyDescription="Create your first service to start tracking applications."
+      emptyDescription="Create a service, or sync a GitHub connection to mirror repositories and organizations."
     />
   )
 }
