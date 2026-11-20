@@ -28,7 +28,7 @@ import { ErrorState } from '@/components/data/ErrorState'
 import { EmptyState } from '@/components/data/EmptyState'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
-import { schemaForProvider } from '@/lib/providers/credentials'
+import { fetchCredentialSchema } from '@/lib/providers/credentials'
 import { formatDateTime } from '@/lib/utils'
 import type { Provider } from '@/types/api'
 
@@ -132,7 +132,16 @@ function CreateConnectionDialog({
   const [error, setError] = useState<string | null>(null)
 
   const selectedProvider = providers.find((p) => p.slug === provider) ?? null
-  const schema = schemaForProvider(selectedProvider)
+
+  const schemaQuery = useQuery({
+    queryKey: ['provider-credential-schema', provider],
+    queryFn: () => fetchCredentialSchema(provider),
+    enabled: !!provider,
+    staleTime: 60_000,
+  })
+
+  const schema = schemaQuery.data?.credential_schema ?? null
+  const schemaLoading = !!provider && schemaQuery.isLoading
 
   const setCred = (key: string, value: string) => {
     setCredValues((prev) => ({ ...prev, [key]: value }))
@@ -214,6 +223,22 @@ function CreateConnectionDialog({
             </div>
           )}
 
+          {schemaLoading && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading credential fields…
+            </p>
+          )}
+
+          {schemaQuery.isError && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <p>Could not load credential fields for this provider.</p>
+              <button type="button" className="mt-1 underline underline-offset-2" onClick={() => schemaQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          )}
+
           {schema && (
             <>
               {schema.note && <p className="text-xs text-muted-foreground">{schema.note}</p>}
@@ -246,10 +271,6 @@ function CreateConnectionDialog({
                 </div>
               ))}
             </>
-          )}
-
-          {!schema && provider && (
-            <p className="text-xs text-muted-foreground">No credential schema for this provider yet.</p>
           )}
 
           <div className="space-y-1.5">

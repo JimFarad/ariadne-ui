@@ -410,6 +410,13 @@ export interface ProviderCredentialSchema {
   note?: string
 }
 
+export interface ProviderCredentialSchemaResource {
+  id: string
+  slug: string
+  name: string
+  credential_schema: ProviderCredentialSchema
+}
+
 export interface Provider {
   id?: string
   slug: string
@@ -417,7 +424,6 @@ export interface Provider {
   category?: string
   regions?: Array<{ slug: string; name: string }>
   status?: string
-  credential_schema?: ProviderCredentialSchema
   [key: string]: unknown
 }
 
