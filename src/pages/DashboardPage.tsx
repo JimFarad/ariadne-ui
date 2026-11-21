@@ -122,9 +122,11 @@ export function DashboardPage() {
                       {events.map((event) => (
                         <li key={event.id} className="flex items-center justify-between gap-3 py-2.5">
                           <div className="min-w-0">
-                            <p className="truncate font-mono text-xs">{event.action}</p>
-                            {event.description && (
-                              <p className="truncate text-xs text-muted-foreground">{event.description}</p>
+                            <p className="truncate text-sm">{event.message ?? event.description ?? event.action ?? '—'}</p>
+                            {(event.user || event.ip_address) && (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {[event.user, event.ip_address].filter(Boolean).join(' · ')}
+                              </p>
                             )}
                           </div>
                           <span className="shrink-0 text-xs text-muted-foreground">

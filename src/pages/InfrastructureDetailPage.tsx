@@ -30,6 +30,7 @@ const META_SKIP = new Set([
   'monthly_cost',
   'currency',
   'provider_account_id',
+  'routes',
 ])
 
 /** Friendly labels + units for common provider metadata keys. */
@@ -45,6 +46,10 @@ const META_LABELS: Record<string, string> = {
   status: 'Provider status',
   size: 'Size',
   region: 'Region',
+  tun_type: 'Tunnel type',
+  usage_model: 'Usage model',
+  created_on: 'Created on',
+  modified_on: 'Modified on',
 }
 
 const META_UNITS: Record<string, string> = {
@@ -81,6 +86,8 @@ export function InfrastructureDetailPage() {
   if (query.isLoading) return <LoadingSpinner />
   if (query.error || !resource) return <ErrorState error={query.error} onRetry={() => query.refetch()} />
 
+  const kind = resource.kind ?? 'compute'
+
   return (
     <div>
       <PageHeader
@@ -110,27 +117,51 @@ export function InfrastructureDetailPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Power</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {POWER_ACTIONS.map(({ action, label }) => (
-                <Button
-                  key={action}
-                  variant={action === 'stop' ? 'destructive' : 'default'}
-                  onClick={() => setPendingAction(action)}
-                  disabled={powerMutation.isPending}
-                >
-                  <Power className="h-4 w-4" />
-                  {label}
-                </Button>
-              ))}
-            </div>
-            {actionResult && <p className="mt-3 text-sm text-muted-foreground">Power action applied: {actionResult}</p>}
-          </CardContent>
-        </Card>
+        {kind === 'compute' && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Power</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {POWER_ACTIONS.map(({ action, label }) => (
+                  <Button
+                    key={action}
+                    variant={action === 'stop' ? 'destructive' : 'default'}
+                    onClick={() => setPendingAction(action)}
+                    disabled={powerMutation.isPending}
+                  >
+                    <Power className="h-4 w-4" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {actionResult && <p className="mt-3 text-sm text-muted-foreground">Power action applied: {actionResult}</p>}
+            </CardContent>
+          </Card>
+        )}
+
+        {kind === 'network' && (resource.routes ?? []).length > 0 && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Ingress routes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-1.5">
+                {(resource.routes ?? []).map((route, i) => {
+                  const hostname = String(route.hostname ?? '')
+                  const service = String(route.service ?? '')
+                  return (
+                    <li key={i} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="font-mono text-xs">{hostname || '—'}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{service || '—'}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -138,6 +169,7 @@ export function InfrastructureDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <DetailRow label="Type" value={infraTypeLabel(resource.type)} />
+            <DetailRow label="Kind" value={kind} />
             <DetailRow label="Location" value={locationLabel(resource.location)} />
             <DetailRow label="Provider" value={resource.provider} />
             <DetailRow label="External ID" value={resource.external_id} />
@@ -146,44 +178,48 @@ export function InfrastructureDetailPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>IP addresses</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(resource.ip_addresses ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">None.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {resource.ip_addresses!.map((ip, i) => (
-                  <li key={i} className="font-mono text-xs">
-                    {ipAddressLabel(ip)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        {kind === 'compute' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>IP addresses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(resource.ip_addresses ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">None.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {resource.ip_addresses!.map((ip, i) => (
+                    <li key={i} className="font-mono text-xs">
+                      {ipAddressLabel(ip)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>SSH keys</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(resource.ssh_keys ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">None.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {resource.ssh_keys!.map((key, i) => (
-                  <li key={i} className="text-sm">
-                    {sshKeyName(key) && <span className="font-medium">{sshKeyName(key)}</span>}
-                    <span className="ml-2 break-all font-mono text-xs text-muted-foreground">{sshKeyLabel(key)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        {kind === 'compute' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>SSH keys</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(resource.ssh_keys ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">None.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {resource.ssh_keys!.map((key, i) => (
+                    <li key={i} className="text-sm">
+                      {sshKeyName(key) && <span className="font-medium">{sshKeyName(key)}</span>}
+                      <span className="ml-2 break-all font-mono text-xs text-muted-foreground">{sshKeyLabel(key)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {resource.metadata && Object.keys(resource.metadata).length > 0 && (
           <Card>

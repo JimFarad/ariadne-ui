@@ -144,7 +144,10 @@ export interface DashboardEntitySummary {
 export interface DashboardEvent {
   id: string
   action?: string | null
+  message?: string | null
   description?: string | null
+  user?: string | null
+  ip_address?: string | null
   created_at?: string
   [key: string]: unknown
 }
@@ -207,6 +210,7 @@ export interface InfrastructureLocation {
 export interface InfrastructureResource {
   id: string
   type: InfrastructureType
+  kind?: 'compute' | 'network' | 'edge' | string
   name: string
   status: InfrastructureStatus
   location?: InfrastructureLocation | string | null
@@ -214,6 +218,7 @@ export interface InfrastructureResource {
   provider?: string | null
   realm_id?: string | null
   metadata?: Record<string, unknown> | null
+  routes?: Array<Record<string, unknown>> | null
   ip_addresses?: Array<string | IpAddress> | null
   ssh_keys?: Array<string | SshKey> | null
   monthly_cost?: string | number | null

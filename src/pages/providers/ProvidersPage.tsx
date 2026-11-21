@@ -167,6 +167,7 @@ export function ConnectionsPage() {
       {editing && (
         <EditConnectionDialog
           connection={editing}
+          providers={providersQuery.data ?? []}
           onOpenChange={(open) => !open && setEditing(null)}
           onSaved={invalidate}
         />
@@ -200,35 +201,149 @@ export function ConnectionsPage() {
 
 function EditConnectionDialog({
   connection,
+  providers,
   onOpenChange,
   onSaved,
 }: {
   connection: Row
+  providers: Provider[]
   onOpenChange: (o: boolean) => void
   onSaved: () => void
 }) {
   const { activeEntityId } = useWorkspace()
   const [name, setName] = useState(String(connection.name ?? ''))
+  const [region, setRegion] = useState(String(connection.region ?? ''))
+  const [credValues, setCredValues] = useState<Record<string, string>>({})
+  const [advancedConfig, setAdvancedConfig] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const slug =
+    connection.provider && typeof connection.provider === 'object' && connection.provider !== null
+      ? String((connection.provider as Record<string, unknown>).slug ?? '')
+      : String(connection.provider ?? '')
+  const selectedProvider = providers.find((p) => p.slug === slug) ?? null
+
+  const schemaQuery = useQuery({
+    queryKey: ['provider-credential-schema', slug],
+    queryFn: () => fetchCredentialSchema(slug),
+    enabled: !!slug,
+    staleTime: 60_000,
+  })
+
+  const schema = schemaQuery.data?.credential_schema ?? null
+
+  const setCred = (key: string, value: string) => {
+    setCredValues((prev) => ({ ...prev, [key]: value }))
+  }
+
   const mutation = useMutation({
-    mutationFn: () => api.patch(`/v1/workspaces/${activeEntityId}/provider-connections/${connection.id}`, { name }),
+    mutationFn: () => {
+      const credentials: Record<string, string> = {}
+      for (const [key, value] of Object.entries(credValues)) {
+        if (value !== '') credentials[key] = value
+      }
+
+      let config: Record<string, unknown> | undefined
+      if (advancedConfig.trim() !== '') {
+        try {
+          config = JSON.parse(advancedConfig)
+        } catch {
+          throw new Error('Advanced config must be valid JSON.')
+        }
+      }
+
+      return api.patch(`/v1/workspaces/${activeEntityId}/provider-connections/${connection.id}`, {
+        name,
+        region: (selectedProvider?.regions ?? []).length > 0 ? region || null : undefined,
+        credentials: Object.keys(credentials).length > 0 ? credentials : undefined,
+        config,
+      })
+    },
     onSuccess: () => { onOpenChange(false); onSaved() },
-    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to update connection.'),
+    onError: (err) => setError(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : 'Unable to update connection.'),
   })
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit connection</DialogTitle>
-          <DialogDescription>Rename the connection.</DialogDescription>
+          <DialogDescription>Update the name, region, credentials or config.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="ec-name">Name</Label>
-            <Input id="ec-name" value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ec-name">Name</Label>
+              <Input id="ec-name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            {(selectedProvider?.regions ?? []).length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Region</Label>
+                <Select value={region} onValueChange={setRegion}>
+                  <SelectTrigger><SelectValue placeholder="No region" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {selectedProvider!.regions!.map((r) => (
+                      <SelectItem key={r.slug} value={r.slug}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
+
+          {schema && (
+            <div className="max-h-[30vh] space-y-4 overflow-y-auto rounded-md border border-border p-3">
+              <p className="text-xs text-muted-foreground">Leave credential fields blank to keep the current values.</p>
+              {schema.fields.map((field) => (
+                <div key={field.key} className="space-y-1.5">
+                  <Label htmlFor={`ec-cred-${field.key}`}>{field.label}</Label>
+                  {field.type === 'textarea' ? (
+                    <Textarea
+                      id={`ec-cred-${field.key}`}
+                      value={credValues[field.key] ?? ''}
+                      onChange={(e) => setCred(field.key, e.target.value)}
+                      rows={4}
+                      className="font-mono text-xs"
+                      placeholder={field.placeholder}
+                    />
+                  ) : (
+                    <Input
+                      id={`ec-cred-${field.key}`}
+                      type={field.type === 'password' ? 'password' : 'text'}
+                      value={credValues[field.key] ?? ''}
+                      onChange={(e) => setCred(field.key, e.target.value)}
+                      autoComplete="off"
+                      placeholder={field.placeholder}
+                    />
+                  )}
+                  {field.hint && <p className="text-xs text-muted-foreground">{field.hint}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAdvanced && 'rotate-180')} />
+              Advanced config
+            </button>
+            {showAdvanced && (
+              <Textarea
+                value={advancedConfig}
+                onChange={(e) => setAdvancedConfig(e.target.value)}
+                rows={2}
+                className="mt-2 font-mono text-xs"
+                placeholder={'{\n  "account_id": "…"\n}'}
+              />
+            )}
+          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>

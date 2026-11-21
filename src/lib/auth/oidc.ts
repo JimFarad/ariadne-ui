@@ -38,16 +38,80 @@ export const oidcConfig = {
 }
 
 const OIDC_STATE_KEY = 'ariadne.oidc.state'
+const DISCOVERY_CACHE_KEY = 'ariadne.oidc.discovery'
+const DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000 // discovery documents rarely change
+
+interface CachedDiscovery {
+  document: DiscoveryDocument
+  fetched_at: number
+}
 
 let discoveryPromise: Promise<DiscoveryDocument> | null = null
+let discoveryMemo: DiscoveryDocument | null = null
 
-export function getDiscovery(): Promise<DiscoveryDocument> {
-  if (!discoveryPromise) {
-    discoveryPromise = fetch(oidcConfig.discoveryUrl, { headers: { Accept: 'application/json' } }).then((res) => {
-      if (!res.ok) throw new Error(`OIDC discovery failed: ${res.status}`)
-      return res.json() as Promise<DiscoveryDocument>
-    })
+function readCachedDiscovery(): DiscoveryDocument | null {
+  try {
+    const raw = localStorage.getItem(DISCOVERY_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as CachedDiscovery
+    if (!parsed?.document?.token_endpoint) return null
+    if (Date.now() - parsed.fetched_at > DISCOVERY_TTL_MS) return null
+    return parsed.document
+  } catch {
+    return null
   }
+}
+
+function writeCachedDiscovery(doc: DiscoveryDocument) {
+  try {
+    localStorage.setItem(DISCOVERY_CACHE_KEY, JSON.stringify({ document: doc, fetched_at: Date.now() }))
+  } catch {
+    // Storage may be unavailable; the in-memory memo still avoids refetches this session.
+  }
+}
+
+export function clearDiscoveryCache() {
+  discoveryMemo = null
+  try {
+    localStorage.removeItem(DISCOVERY_CACHE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+function fetchDiscovery(): Promise<DiscoveryDocument> {
+  return fetch(oidcConfig.discoveryUrl, { headers: { Accept: 'application/json' } }).then((res) => {
+    if (!res.ok) throw new Error(`OIDC discovery failed: ${res.status}`)
+    return res.json() as Promise<DiscoveryDocument>
+  })
+}
+
+/**
+ * Resolve the OIDC discovery document, preferring the persisted cache so a
+ * page reload doesn't re-fetch it. The document is only fetched when there is
+ * no cached copy or the cached copy has expired.
+ */
+export function getDiscovery(): Promise<DiscoveryDocument> {
+  if (discoveryMemo) return Promise.resolve(discoveryMemo)
+
+  if (!discoveryPromise) {
+    const cached = readCachedDiscovery()
+    if (cached) {
+      discoveryMemo = cached
+      return Promise.resolve(cached)
+    }
+
+    discoveryPromise = fetchDiscovery()
+      .then((doc) => {
+        discoveryMemo = doc
+        writeCachedDiscovery(doc)
+        return doc
+      })
+      .finally(() => {
+        discoveryPromise = null
+      })
+  }
+
   return discoveryPromise
 }
 
@@ -123,6 +187,20 @@ async function postToken(body: URLSearchParams): Promise<TokenSet> {
     body,
   })
   if (!res.ok) {
+    // A 404/410 suggests the cached discovery document is stale (endpoint
+    // moved). Bust the cache and retry once against fresh discovery.
+    if (res.status === 404 || res.status === 410) {
+      clearDiscoveryCache()
+      const fresh = await getDiscovery()
+      const retry = await fetch(fresh.token_endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+        body,
+      })
+      if (retry.ok) return (await retry.json()) as TokenSet
+      const retryText = await retry.text().catch(() => '')
+      throw new Error(`Token exchange failed (${retry.status}): ${retryText.slice(0, 300)}`)
+    }
     const text = await res.text().catch(() => '')
     throw new Error(`Token exchange failed (${res.status}): ${text.slice(0, 300)}`)
   }
