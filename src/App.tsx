@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
+import { PreferencesProvider } from '@/context/PreferencesContext'
 import { WorkspaceProvider } from '@/context/WorkspaceContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { ProtectedRoute, FullPageSpinner } from '@/components/ProtectedRoute'
@@ -21,6 +22,8 @@ import { ModulesPage } from '@/pages/workspace/ModulesPage'
 import { StoragePolicyPage } from '@/pages/workspace/StoragePolicyPage'
 import { ScimConfigPage } from '@/pages/workspace/ScimConfigPage'
 import { AuditLogsPage } from '@/pages/workspace/AuditLogsPage'
+import { NotificationPreferencesPage } from '@/pages/workspace/NotificationPreferencesPage'
+import { PreferencesPage } from '@/pages/PreferencesPage'
 
 // Module pages are code-split so the initial shell stays lean.
 const sm = (name: string) => lazy(() => import('@/pages/simple-modules').then((m) => ({ default: m[name as keyof typeof m] })))
@@ -86,6 +89,8 @@ const router = createBrowserRouter([
           { path: 'workspace/storage-policy', element: <StoragePolicyPage /> },
           { path: 'workspace/scim', element: <ScimConfigPage /> },
           { path: 'workspace/audit-logs', element: <AuditLogsPage /> },
+          { path: 'workspace/notification-preferences', element: <NotificationPreferencesPage /> },
+          { path: 'preferences', element: <PreferencesPage /> },
           { path: 'services', element: <ServicesPage /> },
           { path: 'infrastructure', element: <InfrastructurePage /> },
           { path: 'infrastructure/:id', element: <InfrastructureDetailPage /> },
@@ -144,9 +149,11 @@ export function App() {
     <ThemeProvider>
       <ErrorBoundary>
         <AuthProvider>
-          <WorkspaceProvider>
-            <RouterProvider router={router} />
-          </WorkspaceProvider>
+          <PreferencesProvider>
+            <WorkspaceProvider>
+              <RouterProvider router={router} />
+            </WorkspaceProvider>
+          </PreferencesProvider>
         </AuthProvider>
       </ErrorBoundary>
     </ThemeProvider>

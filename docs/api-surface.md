@@ -224,6 +224,19 @@ and `?status=` (exact match). Types: `charge`, `balance_transaction`,
 - **Module capabilities** — `GET /v1/modules/{slug}/capabilities` → list of
   `{ id, slug, provider, resource_type, operation, access_type, risk_level, permission, status }`.
 
+### Notifications, workspaces and user preferences
+
+- **Notification preferences** — `GET/PUT /v1/notifications/preferences`
+  (global) and `GET/PUT /v1/workspaces/{entity}/notification-preferences`
+  (per-workspace override). Shape `{ categories: string[], enabled: string[] }`;
+  PUT body `{ categories: string[] }`. Categories: `provider`, `domains`,
+  `finance`, `infrastructure`, `workspace`.
+- **Workspace edit** — `PATCH /v1/workspaces/{entity}` accepts `name`,
+  `description`, `image` (logo URL) and `metadata` (object). Entity responses
+  now include `image` and `metadata`.
+- **User preferences** — `GET/PUT /v1/preferences`, a merged key/value store:
+  `{ preferences: { theme, language, time_format, date_format, default_page, favorite_entities, … } }`.
+
 ## Known permission gaps (as of this snapshot)
 
 For the test user (Owner role), these returned `403` despite enabled modules:

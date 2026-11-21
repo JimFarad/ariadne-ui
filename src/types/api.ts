@@ -51,6 +51,8 @@ export interface Entity {
   type: 'personal' | 'organization' | 'client' | string
   name: string
   description?: string | null
+  image?: string | null
+  metadata?: Record<string, unknown> | null
   owner?: EntityOwner
   created_at?: string
   updated_at?: string
@@ -130,6 +132,16 @@ export interface Notification {
   expires_at?: string | null
   created_at?: string
   [key: string]: unknown
+}
+
+export interface NotificationPreferences {
+  categories: string[]
+  enabled: string[]
+  [key: string]: unknown
+}
+
+export interface UserPreferencesResource {
+  preferences: Record<string, unknown>
 }
 
 export interface DashboardEntitySummary {

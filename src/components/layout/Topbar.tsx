@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Bug, Check, ChevronsUpDown, LogOut, Moon, Search, Sun, User } from 'lucide-react'
+import { Bell, Bug, Check, ChevronsUpDown, LogOut, Moon, Search, Settings, Star, Sun, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/context/AuthContext'
+import { usePreferences } from '@/context/PreferencesContext'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { useTheme } from '@/context/ThemeContext'
 import { SearchDialog } from './SearchDialog'
@@ -109,9 +110,13 @@ function initials(name: string): string {
 export function Topbar({ onOpenMobileNav, leftSlot }: { onOpenMobileNav: () => void; leftSlot?: ReactNode }) {
   const { user, logout } = useAuth()
   const { workspaces, activeEntity, activeEntityId, realms, activeRealmId, switchEntity, switchRealm } = useWorkspace()
+  const { favoriteEntityIds } = usePreferences()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const [searchOpen, setSearchOpen] = useState(false)
+
+  const favorites = workspaces.filter((ws) => favoriteEntityIds.has(ws.id))
+  const others = workspaces.filter((ws) => !favoriteEntityIds.has(ws.id))
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur sm:px-6">
@@ -127,7 +132,15 @@ export function Topbar({ onOpenMobileNav, leftSlot }: { onOpenMobileNav: () => v
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[240px]">
           <DropdownMenuLabel>Workspaces</DropdownMenuLabel>
-          {workspaces.map((ws) => (
+          {favorites.map((ws) => (
+            <DropdownMenuItem key={ws.id} onSelect={() => switchEntity(ws.id)}>
+              <Star className="h-4 w-4 text-primary" />
+              <span className="flex-1 truncate">{ws.name}</span>
+              {ws.id === activeEntityId && <Check className="h-4 w-4 text-primary" />}
+            </DropdownMenuItem>
+          ))}
+          {favorites.length > 0 && others.length > 0 && <DropdownMenuSeparator />}
+          {others.map((ws) => (
             <DropdownMenuItem key={ws.id} onSelect={() => switchEntity(ws.id)}>
               <span className="flex-1 truncate">{ws.name}</span>
               {ws.id === activeEntityId && <Check className="h-4 w-4 text-primary" />}
@@ -203,6 +216,10 @@ export function Topbar({ onOpenMobileNav, leftSlot }: { onOpenMobileNav: () => v
               Developer diagnostics
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem onSelect={() => navigate('/preferences')}>
+            <Settings />
+            Preferences
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => void logout()}>
             <LogOut />
             Sign out

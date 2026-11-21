@@ -4,6 +4,8 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { NotificationPreferencesPanel } from '@/components/notifications/NotificationPreferencesPanel'
 import { api } from '@/lib/api/client'
 import { formatDateTime, relativeTime } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/ui/spinner'
@@ -54,46 +56,59 @@ export function NotificationsPage() {
         }
       />
 
-      {query.isLoading ? (
-        <LoadingSpinner />
-      ) : query.error ? (
-        <ErrorState error={query.error} onRetry={() => query.refetch()} />
-      ) : notifications.length === 0 ? (
-        <EmptyState icon={<BellOff className="h-6 w-6" />} title="No notifications" description="You're all caught up." />
-      ) : (
-        <div className="space-y-2">
-          {notifications.map((n) => {
-            const unread = !n.read_at
-            return (
-              <Card key={n.id} className={unread ? 'border-primary/30' : undefined}>
-                <CardContent className="flex items-start justify-between gap-4 py-3.5">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
-                      <p className="truncate text-sm font-medium">{n.title}</p>
-                      {n.severity && <Badge variant="neutral">{n.severity}</Badge>}
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
-                    <p className="mt-1 text-xs text-muted-foreground/70" title={formatDateTime(n.created_at)}>
-                      {relativeTime(n.created_at)}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    {unread && (
-                      <Button variant="ghost" size="icon-sm" onClick={() => markReadMutation.mutate(n.id)} aria-label="Mark read">
-                        <CheckCheck className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(n.id)} aria-label="Delete">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+      <Tabs defaultValue="inbox">
+        <TabsList>
+          <TabsTrigger value="inbox">Inbox</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="inbox">
+          {query.isLoading ? (
+            <LoadingSpinner />
+          ) : query.error ? (
+            <ErrorState error={query.error} onRetry={() => query.refetch()} />
+          ) : notifications.length === 0 ? (
+            <EmptyState icon={<BellOff className="h-6 w-6" />} title="No notifications" description="You're all caught up." />
+          ) : (
+            <div className="space-y-2">
+              {notifications.map((n) => {
+                const unread = !n.read_at
+                return (
+                  <Card key={n.id} className={unread ? 'border-primary/30' : undefined}>
+                    <CardContent className="flex items-start justify-between gap-4 py-3.5">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
+                          <p className="truncate text-sm font-medium">{n.title}</p>
+                          {n.severity && <Badge variant="neutral">{n.severity}</Badge>}
+                        </div>
+                        <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
+                        <p className="mt-1 text-xs text-muted-foreground/70" title={formatDateTime(n.created_at)}>
+                          {relativeTime(n.created_at)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        {unread && (
+                          <Button variant="ghost" size="icon-sm" onClick={() => markReadMutation.mutate(n.id)} aria-label="Mark read">
+                            <CheckCheck className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon-sm" onClick={() => deleteMutation.mutate(n.id)} aria-label="Delete">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="preferences">
+          <NotificationPreferencesPanel entityId={null} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

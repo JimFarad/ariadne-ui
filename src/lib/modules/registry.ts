@@ -87,6 +87,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Modules', path: '/workspace/modules', icon: Blocks },
       { label: 'Storage policy', path: '/workspace/storage-policy', icon: HardDrive },
       { label: 'SCIM provisioning', path: '/workspace/scim', icon: KeyRound },
+      { label: 'Notification preferences', path: '/workspace/notification-preferences', icon: Bell },
       { label: 'Audit logs', path: '/workspace/audit-logs', icon: ScrollText },
     ],
   },

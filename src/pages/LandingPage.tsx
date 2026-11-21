@@ -4,6 +4,7 @@ import { Activity, ArrowRight, Cable, Layers, Loader2 } from 'lucide-react'
 import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/AuthContext'
+import { usePreferences } from '@/context/PreferencesContext'
 import { FullPageSpinner } from '@/components/ProtectedRoute'
 
 const FEATURES = [
@@ -115,8 +116,15 @@ export function LandingPage() {
 /** Public home route: landing page for guests, dashboard for signed-in users. */
 export function HomeRoute() {
   const { status } = useAuth()
+  const { preferences, isLoading: preferencesLoading } = usePreferences()
 
   if (status === 'loading') return <FullPageSpinner />
-  if (status === 'authenticated') return <Navigate to="/dashboard" replace />
+  if (status === 'authenticated') {
+    if (preferencesLoading) return <FullPageSpinner />
+    const defaultPage = typeof preferences.default_page === 'string' && preferences.default_page.startsWith('/')
+      ? preferences.default_page
+      : '/dashboard'
+    return <Navigate to={defaultPage} replace />
+  }
   return <LandingPage />
 }
