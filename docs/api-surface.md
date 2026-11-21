@@ -196,6 +196,34 @@ and `?status=` (exact match). Types: `charge`, `balance_transaction`,
 { "status": "…", "version": "…", "build": "…", "api_version": "…", "environment": "…", "installation_id": "…", "modules": 22 }
 ```
 
+### Newly integrated surfaces
+
+- **Expenses** — `GET/POST/DELETE` plus `POST …/expenses/{id}/approve`
+  (`{ "approved": bool }`); there is **no** PATCH on expenses. Status:
+  `pending` | `approved` | `rejected`.
+- **Provider connections** — full surface: `PATCH …/{id}` (rename),
+  `DELETE`, `PATCH …/{id}/webhook` (`enabled`, `secret`, `rotate_token`,
+  `auto_create`), `POST …/{id}/operations` (`{ operation, params? }`). The
+  connection response includes a `webhook` object (`enabled`, `url`, …) when
+  configured. Provider accounts support assignments via
+  `GET/POST …/provider-accounts/{id}/assignments` +
+  `DELETE …/assignments/{assignment}`. Resources accept `?provider=`/`?type=`.
+- **Email delivery** — delivery serialize is
+  `{ id, sender (email), recipient, subject, status, provider_message_id, error, sent_at }`
+  (note: no `created_at`). Events:
+  `{ id, type, occurred_at, metadata }` with types
+  `sent|delivered|bounced|opened|clicked|spam|complaint`. Senders expose
+  `spf_status`/`dkim_status` after `POST …/email-senders/{id}/check-dns`.
+- **Documents** — access grants via
+  `GET/POST …/documents/{id}/grants` + `DELETE …/grants/{grant}` (grant:
+  `{ id, entity_id }`).
+- **SCIM config** — `GET/PUT …/workspaces/{entity}/scim`
+  (`{ enabled, token_set, created_at }`; PUT accepts `enabled` + `token`).
+- **Audit logs** — `GET …/workspaces/{entity}/audit-logs` with `?action=`
+  (contains search); rows `{ id, action, message, user, ip_address, created_at }`.
+- **Module capabilities** — `GET /v1/modules/{slug}/capabilities` → list of
+  `{ id, slug, provider, resource_type, operation, access_type, risk_level, permission, status }`.
+
 ## Known permission gaps (as of this snapshot)
 
 For the test user (Owner role), these returned `403` despite enabled modules:

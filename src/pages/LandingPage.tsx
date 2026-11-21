@@ -104,7 +104,7 @@ export function LandingPage() {
 
       {/* Footer */}
       <footer className="flex flex-col items-center justify-center gap-1 border-t border-border px-6 py-5 text-xs text-muted-foreground sm:flex-row sm:gap-2">
-        <span>© {new Date().getFullYear()} Mak Corporation. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Ariadne. All rights reserved.</span>
         <span className="hidden sm:inline">·</span>
         <span>Powered by Mak Corporation</span>
       </footer>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, Plus } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -9,7 +10,6 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -23,23 +23,15 @@ import { api, ApiError } from '@/lib/api/client'
 import { formatDateTime } from '@/lib/utils'
 import type { EmailDelivery } from '@/types/api'
 
-type Row = Record<string, unknown> & { id: string }
-
 export function DeliveriesPage() {
   const { activeEntityId } = useWorkspace()
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
-  const [selected, setSelected] = useState<Row | null>(null)
 
   const query = useQuery({
     queryKey: ['ws', activeEntityId, 'email-deliveries'],
     queryFn: () => api.get<EmailDelivery[]>(`/v1/workspaces/${activeEntityId}/email-deliveries`),
     enabled: !!activeEntityId,
-  })
-  const eventsQuery = useQuery({
-    queryKey: ['ws', activeEntityId, 'email-deliveries', selected?.id, 'events'],
-    queryFn: () => api.get<Row[]>(`/v1/workspaces/${activeEntityId}/email-deliveries/${selected!.id}/events`),
-    enabled: !!activeEntityId && !!selected,
   })
 
   return (
@@ -66,16 +58,18 @@ export function DeliveriesPage() {
             <Card key={d.id}>
               <CardContent className="flex items-center justify-between gap-4 py-3.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{String(d.subject ?? '(no subject)')}</p>
+                  <Link to={`/email/deliveries/${d.id}`} className="truncate text-sm font-medium hover:underline">
+                    {String(d.subject ?? '(no subject)')}
+                  </Link>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    to {String(d.recipient ?? '—')} · {formatDateTime(String(d.created_at ?? ''))}
+                    to {String(d.recipient ?? '—')} · {formatDateTime(String(d.sent_at ?? ''))}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge status={String(d.status ?? '')} />
-                  <Button variant="outline" size="sm" onClick={() => setSelected(d as unknown as Row)}>
-                    Events
-                  </Button>
+                  <Link to={`/email/deliveries/${d.id}`}>
+                    <Button variant="outline" size="sm">Events</Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -89,29 +83,6 @@ export function DeliveriesPage() {
           onSaved={() => void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'email-deliveries'] })}
         />
       )}
-
-      <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delivery events</DialogTitle>
-            <DialogDescription>{String(selected?.subject ?? '')}</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-80 overflow-y-auto">
-            {(eventsQuery.data ?? []).length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">No events.</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {(eventsQuery.data ?? []).map((e, i) => (
-                  <li key={i} className="py-2 text-sm">
-                    <span className="font-mono text-xs">{String(e.type ?? 'event')}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">{formatDateTime(String(e.created_at ?? ''))}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

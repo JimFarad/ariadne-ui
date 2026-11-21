@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/context/AuthContext'
 import { useWorkspace } from '@/context/WorkspaceContext'
-import { getApiContext, getLastDiagnostic, onDiagnostic, type RequestDiagnostic } from '@/lib/api/client'
+import { api, getApiContext, getLastDiagnostic, onDiagnostic, type RequestDiagnostic } from '@/lib/api/client'
 import { getAccessToken } from '@/lib/auth/session'
 import { formatDateTime } from '@/lib/utils'
 
@@ -23,6 +24,17 @@ export function DevPage() {
   const { status, user } = useAuth()
   const { activeEntityId, activeRealmId, modules } = useWorkspace()
   const [diagnostic, setDiagnostic] = useState<RequestDiagnostic | null>(getLastDiagnostic())
+
+  const statusQuery = useQuery({
+    queryKey: ['v1-status'],
+    queryFn: () => api.get<Record<string, unknown>>('/v1/status'),
+    enabled: isDev,
+  })
+  const openapiQuery = useQuery({
+    queryKey: ['v1-openapi'],
+    queryFn: () => api.get<{ paths?: Record<string, unknown> }>('/v1/openapi'),
+    enabled: isDev,
+  })
 
   useEffect(() => onDiagnostic(() => setDiagnostic(getLastDiagnostic())), [])
 
@@ -56,6 +68,29 @@ export function DevPage() {
             <DiagnosticRow label="Auth status" value={status} />
             <DiagnosticRow label="User" value={user ? `${user.name} (${user.email ?? 'no email'})` : '—'} />
             <DiagnosticRow label="Access token" value={getAccessToken() ? 'present (in memory)' : 'absent'} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>API status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {statusQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : statusQuery.error ? (
+              <p className="text-sm text-destructive">Unable to fetch /v1/status.</p>
+            ) : (
+              <>
+                {Object.entries(statusQuery.data ?? {}).map(([key, value]) => (
+                  <DiagnosticRow key={key} label={key} value={String(value)} />
+                ))}
+                <DiagnosticRow
+                  label="OpenAPI paths"
+                  value={openapiQuery.data?.paths ? `${Object.keys(openapiQuery.data.paths).length} documented` : '—'}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
 

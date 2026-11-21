@@ -334,6 +334,9 @@ export interface Project {
   name: string
   description?: string | null
   status?: string
+  start_date?: string | null
+  due_date?: string | null
+  progress?: { tasks_total?: number; tasks_done?: number; percent?: number }
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -343,9 +346,11 @@ export interface Task {
   id: string
   title?: string
   name?: string
+  description?: string | null
   status?: string
-  assignee?: string | null
-  due_at?: string | null
+  assignee?: { id: string; name?: string } | string | null
+  due_date?: string | null
+  position?: number
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -355,7 +360,8 @@ export interface Milestone {
   id: string
   name?: string
   title?: string
-  due_at?: string | null
+  due_date?: string | null
+  completed_at?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -367,10 +373,16 @@ export interface SecurityFinding {
   id: string
   title?: string
   severity?: string
+  cvss_score?: number | string | null
   cvss?: number | string | null
   status?: string
+  source?: string | null
+  external_id?: string | null
+  description?: string | null
+  remediation?: string | null
   assignee?: string | null
-  due_at?: string | null
+  due_date?: string | null
+  resolved_at?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -411,7 +423,10 @@ export interface Invoice {
 export interface Expense {
   id: string
   description?: string | null
+  vendor?: string | null
+  date?: string | null
   amount?: string | number | null
+  tax_amount?: string | number | null
   currency?: string | null
   status?: string
   category?: string | null
@@ -448,18 +463,45 @@ export interface Transaction {
 export interface InvoiceIntakeConfig {
   id: string
   name?: string
-  address?: string
+  description?: string | null
+  scope_module?: string | null
+  provider_slug?: string | null
+  category?: string | null
+  purpose?: string | null
+  trust_policy_mode?: string
+  max_attachment_mb?: number
+  allowed_file_types?: string[]
+  status?: string
+  revoked_at?: string | null
+  address?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
 }
 
+export interface InvoiceIntakeSender {
+  id: string
+  kind?: 'address' | 'domain' | string
+  value?: string
+  [key: string]: unknown
+}
+
 export interface InvoiceIntakeMessage {
   id: string
+  config_id?: string | null
+  transport?: string
+  from_address?: string | null
+  from_name?: string | null
   status?: string
+  disposition?: string | null
+  spam_score?: number | null
+  auth_results?: unknown
   subject?: string | null
-  from?: string | null
   received_at?: string
+  processed_at?: string | null
+  error?: string | null
+  attachment_count?: number
+  attachments?: Array<{ id: string; filename?: string; mime_type?: string; size_bytes?: number; scanned?: boolean }>
   created_at?: string
   [key: string]: unknown
 }
@@ -499,9 +541,14 @@ export interface Provider {
 
 export interface ProviderConnection {
   id: string
-  provider?: string
+  provider?: { slug: string; name: string } | string | null
   name?: string
   status?: string
+  health?: string | null
+  realm_id?: string | null
+  region?: string | null
+  webhook?: { enabled: boolean; token: string; path: string; url: string } | null
+  last_checked_at?: string | null
   created_at?: string
   updated_at?: string
   [key: string]: unknown
@@ -530,8 +577,19 @@ export interface ProviderSync {
 export interface ProviderAccount {
   id: string
   name?: string
-  provider?: string
+  provider?: string | null
+  external_id?: string | null
+  realm_id?: string | null
+  shared?: boolean
+  owner_entity_id?: string | null
   created_at?: string
+  [key: string]: unknown
+}
+
+export interface ProviderAccountAssignment {
+  id: string
+  entity_id?: string | null
+  realm_id?: string | null
   [key: string]: unknown
 }
 
@@ -541,8 +599,18 @@ export interface DocumentItem {
   id: string
   name?: string
   title?: string
+  type?: string
+  content?: string | null
+  tags?: string[]
   created_at?: string
   updated_at?: string
+  [key: string]: unknown
+}
+
+export interface DocumentGrant {
+  id: string
+  entity_id?: string | null
+  realm_id?: string | null
   [key: string]: unknown
 }
 
@@ -608,8 +676,13 @@ export interface MailAccount {
 
 export interface EmailSender {
   id: string
+  name?: string
   email?: string
   domain?: string
+  spf_status?: string | null
+  dkim_status?: string | null
+  dns_checked_at?: string | null
+  provider?: string | null
   created_at?: string
   [key: string]: unknown
 }
@@ -618,6 +691,7 @@ export interface EmailTemplate {
   id: string
   name?: string
   subject?: string | null
+  body?: string | null
   created_at?: string
   [key: string]: unknown
 }
@@ -625,8 +699,22 @@ export interface EmailTemplate {
 export interface EmailDelivery {
   id: string
   subject?: string | null
+  recipient?: string | null
+  sender?: string | null
+  template?: string | null
   status?: string
+  provider_message_id?: string | null
+  error?: string | null
+  sent_at?: string | null
   created_at?: string
+  [key: string]: unknown
+}
+
+export interface DeliveryEvent {
+  id?: string
+  type?: string
+  occurred_at?: string
+  metadata?: Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -676,3 +764,20 @@ export interface IotDevice {
 }
 
 export type PowerAction = 'start' | 'stop' | 'restart'
+
+export interface AuditLog {
+  id: string
+  action?: string
+  message?: string | null
+  user?: string | null
+  ip_address?: string | null
+  created_at?: string
+  [key: string]: unknown
+}
+
+export interface ScimConfig {
+  enabled?: boolean
+  token_set?: boolean
+  created_at?: string | null
+  [key: string]: unknown
+}

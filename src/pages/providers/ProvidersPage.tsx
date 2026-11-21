@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Loader2, Plus, RefreshCw } from 'lucide-react'
+import { ChevronDown, Loader2, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Webhook as WebhookIcon, Zap } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -15,6 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +31,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { StatusBadge } from '@/components/StatusBadge'
+import { ConfirmDialog } from '@/components/forms/ConfirmDialog'
 import { LoadingSpinner } from '@/components/ui/spinner'
 import { ErrorState } from '@/components/data/ErrorState'
 import { EmptyState } from '@/components/data/EmptyState'
@@ -31,7 +39,7 @@ import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
 import { fetchCredentialSchema } from '@/lib/providers/credentials'
 import { cn, formatDateTime, relativeTime } from '@/lib/utils'
-import type { Provider } from '@/types/api'
+import type { Provider, ProviderAccountAssignment } from '@/types/api'
 
 type Row = Record<string, unknown> & { id: string }
 
@@ -42,6 +50,10 @@ export function ConnectionsPage() {
   const { activeEntityId } = useWorkspace()
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
+  const [editing, setEditing] = useState<Row | null>(null)
+  const [webhookFor, setWebhookFor] = useState<Row | null>(null)
+  const [operationsFor, setOperationsFor] = useState<Row | null>(null)
+  const [deleting, setDeleting] = useState<Row | null>(null)
 
   const query = useQuery({
     queryKey: ['ws', activeEntityId, 'provider-connections'],
@@ -54,10 +66,25 @@ export function ConnectionsPage() {
     enabled: !!activeEntityId,
   })
 
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'provider-connections'] })
+
   const syncMutation = useMutation({
     mutationFn: (id: string) => api.post(`/v1/workspaces/${activeEntityId}/provider-connections/${id}/sync`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'provider-connections'] }),
+    onSuccess: invalidate,
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/v1/workspaces/${activeEntityId}/provider-connections/${id}`),
+    onSuccess: () => {
+      setDeleting(null)
+      invalidate()
+    },
+  })
+
+  const providerName = (c: Row) =>
+    c.provider && typeof c.provider === 'object' && c.provider !== null
+      ? String((c.provider as Record<string, unknown>).name ?? (c.provider as Record<string, unknown>).slug)
+      : String(c.provider ?? '')
 
   return (
     <div>
@@ -87,19 +114,43 @@ export function ConnectionsPage() {
                     <p className="truncate text-sm font-medium">{String(c.name ?? '')}</p>
                     <StatusBadge status={String(c.status ?? '')} />
                     {c.health ? <StatusBadge status={String(c.health)} /> : null}
+                    {c.webhook && typeof c.webhook === 'object' && (c.webhook as Record<string, unknown>).enabled === true ? (
+                      <span className="rounded bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">webhook</span>
+                    ) : null}
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {c.provider && typeof c.provider === 'object' && c.provider !== null
-                      ? String((c.provider as Record<string, unknown>).name ?? (c.provider as Record<string, unknown>).slug)
-                      : String(c.provider ?? '')}
+                    {providerName(c)}
                     {c.region ? ` · region ${String(c.region)}` : ''}
                     {c.last_checked_at ? ` · checked ${relativeTime(String(c.last_checked_at))}` : ''}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => syncMutation.mutate(c.id)} disabled={syncMutation.isPending}>
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Sync
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button variant="outline" size="sm" onClick={() => syncMutation.mutate(c.id)} disabled={syncMutation.isPending}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Sync
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon-sm" aria-label="Actions">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => setEditing(c)}>
+                        <Pencil /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setWebhookFor(c)}>
+                        <WebhookIcon /> Webhook
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setOperationsFor(c)}>
+                        <Zap /> Operations
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setDeleting(c)} className="text-destructive">
+                        <Trash2 /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -110,10 +161,238 @@ export function ConnectionsPage() {
         <CreateConnectionDialog
           providers={providersQuery.data ?? []}
           onOpenChange={setCreateOpen}
-          onSaved={() => void queryClient.invalidateQueries({ queryKey: ['ws', activeEntityId, 'provider-connections'] })}
+          onSaved={invalidate}
         />
       )}
+      {editing && (
+        <EditConnectionDialog
+          connection={editing}
+          onOpenChange={(open) => !open && setEditing(null)}
+          onSaved={invalidate}
+        />
+      )}
+      {webhookFor && (
+        <WebhookDialog
+          connection={webhookFor}
+          onOpenChange={(open) => !open && setWebhookFor(null)}
+          onSaved={invalidate}
+        />
+      )}
+      {operationsFor && (
+        <OperationsDialog
+          connection={operationsFor}
+          onOpenChange={(open) => !open && setOperationsFor(null)}
+        />
+      )}
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete connection"
+        description={`Delete connection ${String(deleting?.name ?? '')}? Mirrored resources will be removed too.`}
+        confirmLabel="Delete"
+        destructive
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleting && deleteMutation.mutate(deleting.id)}
+      />
     </div>
+  )
+}
+
+function EditConnectionDialog({
+  connection,
+  onOpenChange,
+  onSaved,
+}: {
+  connection: Row
+  onOpenChange: (o: boolean) => void
+  onSaved: () => void
+}) {
+  const { activeEntityId } = useWorkspace()
+  const [name, setName] = useState(String(connection.name ?? ''))
+  const [error, setError] = useState<string | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch(`/v1/workspaces/${activeEntityId}/provider-connections/${connection.id}`, { name }),
+    onSuccess: () => { onOpenChange(false); onSaved() },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to update connection.'),
+  })
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit connection</DialogTitle>
+          <DialogDescription>Rename the connection.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="ec-name">Name</Label>
+            <Input id="ec-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}>
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function WebhookDialog({
+  connection,
+  onOpenChange,
+  onSaved,
+}: {
+  connection: Row
+  onOpenChange: (o: boolean) => void
+  onSaved: () => void
+}) {
+  const { activeEntityId } = useWorkspace()
+  const webhook = connection.webhook as Record<string, unknown> | undefined
+  const [enabled, setEnabled] = useState(Boolean(webhook?.enabled))
+  const [secret, setSecret] = useState('')
+  const [rotateToken, setRotateToken] = useState(false)
+  const [autoCreate, setAutoCreate] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<Record<string, unknown> | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.patch<Row>(`/v1/workspaces/${activeEntityId}/provider-connections/${connection.id}/webhook`, {
+        enabled,
+        secret: secret || undefined,
+        rotate_token: rotateToken || undefined,
+        auto_create: autoCreate || undefined,
+      }),
+    onSuccess: (r) => {
+      setResult((r as Row).webhook as Record<string, unknown> | null)
+      setError(null)
+      onSaved()
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to update webhook.'),
+  })
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Inbound webhook</DialogTitle>
+          <DialogDescription>Configure the provider webhook endpoint for this connection.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="wh-enabled">Enabled</Label>
+            <Switch id="wh-enabled" checked={enabled} onCheckedChange={setEnabled} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="wh-secret">Signing secret (optional)</Label>
+            <Input id="wh-secret" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="off" placeholder="Provider signing secret" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="wh-rotate">Rotate token</Label>
+            <Switch id="wh-rotate" checked={rotateToken} onCheckedChange={setRotateToken} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="wh-auto">Auto-create upstream (Porkbun)</Label>
+            <Switch id="wh-auto" checked={autoCreate} onCheckedChange={setAutoCreate} />
+          </div>
+
+          {result?.url ? (
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <p className="text-xs font-medium">Webhook URL</p>
+              <p className="mt-1 break-all font-mono text-xs">{String(result.url)}</p>
+            </div>
+          ) : webhook?.url ? (
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <p className="text-xs font-medium">Webhook URL</p>
+              <p className="mt-1 break-all font-mono text-xs">{String(webhook.url)}</p>
+            </div>
+          ) : null}
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function OperationsDialog({
+  connection,
+  onOpenChange,
+}: {
+  connection: Row
+  onOpenChange: (o: boolean) => void
+}) {
+  const { activeEntityId } = useWorkspace()
+  const [operation, setOperation] = useState('')
+  const [params, setParams] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<unknown>(null)
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      let parsed: unknown
+      if (params.trim() !== '') {
+        try {
+          parsed = JSON.parse(params)
+        } catch {
+          throw new Error('Params must be valid JSON.')
+        }
+      }
+      return api.post<unknown>(`/v1/workspaces/${activeEntityId}/provider-connections/${connection.id}/operations`, {
+        operation,
+        params: parsed,
+      })
+    },
+    onSuccess: (r) => {
+      setResult(r)
+      setError(null)
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : err instanceof Error ? err.message : 'Operation failed.'),
+  })
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Run operation</DialogTitle>
+          <DialogDescription>Execute a provider write operation (capability slug), e.g. dns_record.create.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="op-slug">Operation</Label>
+            <Input id="op-slug" value={operation} onChange={(e) => setOperation(e.target.value)} placeholder="dns_record.create" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="op-params">Params (JSON, optional)</Label>
+            <Textarea id="op-params" value={params} onChange={(e) => setParams(e.target.value)} rows={4} className="font-mono text-xs" placeholder='{ "zone_id": "…", "name": "@" }' />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          {result !== null && (
+            <pre className="max-h-40 overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(result, null, 2)}</pre>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!operation.trim() || mutation.isPending}>
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Run
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -329,11 +608,15 @@ function CreateConnectionDialog({
 /* ------------------------------------------------------------------ */
 export function ResourcesPage() {
   const { activeEntityId } = useWorkspace()
-  const [filter, setFilter] = useState('')
+  const [providerFilter, setProviderFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
 
   const query = useQuery({
-    queryKey: ['ws', activeEntityId, 'provider-resources'],
-    queryFn: () => api.get<Row[]>(`/v1/workspaces/${activeEntityId}/provider-resources`),
+    queryKey: ['ws', activeEntityId, 'provider-resources', providerFilter, typeFilter],
+    queryFn: () =>
+      api.get<Row[]>(`/v1/workspaces/${activeEntityId}/provider-resources`, {
+        query: { provider: providerFilter || undefined, type: typeFilter || undefined },
+      }),
     enabled: !!activeEntityId,
   })
 
@@ -341,35 +624,37 @@ export function ResourcesPage() {
   const providers = useMemo(() => Array.from(new Set(resources.map((r) => String(r.provider ?? '')))).filter(Boolean), [resources])
   const types = useMemo(() => Array.from(new Set(resources.map((r) => String(r.type ?? '')))).filter(Boolean), [resources])
 
-  const filtered = filter
-    ? resources.filter((r) => String(r.provider ?? '') === filter || String(r.type ?? '') === filter)
-    : resources
-
   return (
     <div>
       <PageHeader title="Provider resources" description="Unified inventory across connected providers." />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-[220px]"><SelectValue placeholder="Filter by provider or type" /></SelectTrigger>
+        <Select value={providerFilter || 'all'} onValueChange={(v) => setProviderFilter(v === 'all' ? '' : v)}>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All resources</SelectItem>
-            {providers.map((p) => <SelectItem key={`p:${p}`} value={p}>provider: {p}</SelectItem>)}
-            {types.map((t) => <SelectItem key={`t:${t}`} value={t}>type: {t}</SelectItem>)}
+            <SelectItem value="all">All providers</SelectItem>
+            {providers.map((p) => <SelectItem key={`p:${p}`} value={p}>{p}</SelectItem>)}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">{filtered.length} resources</span>
+        <Select value={typeFilter || 'all'} onValueChange={(v) => setTypeFilter(v === 'all' ? '' : v)}>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {types.map((t) => <SelectItem key={`t:${t}`} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <span className="text-sm text-muted-foreground">{resources.length} resources</span>
       </div>
 
       {query.isLoading ? (
         <LoadingSpinner />
       ) : query.error ? (
         <ErrorState error={query.error} onRetry={() => query.refetch()} />
-      ) : filtered.length === 0 ? (
+      ) : resources.length === 0 ? (
         <EmptyState title="No resources" description="Sync a provider connection to populate the inventory." />
       ) : (
         <div className="space-y-2">
-          {filtered.map((r) => (
+          {resources.map((r) => (
             <Card key={r.id}>
               <CardContent className="flex items-center justify-between gap-4 py-3.5">
                 <div className="min-w-0">
@@ -396,6 +681,7 @@ export function ResourcesPage() {
 /* ------------------------------------------------------------------ */
 export function AccountsPage() {
   const { activeEntityId } = useWorkspace()
+  const [assignmentsFor, setAssignmentsFor] = useState<Row | null>(null)
 
   const query = useQuery({
     queryKey: ['ws', activeEntityId, 'provider-accounts'],
@@ -418,15 +704,121 @@ export function AccountsPage() {
             <Card key={a.id}>
               <CardContent className="flex items-center justify-between gap-4 py-3.5">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{String(a.name ?? a.id)}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{String(a.provider ?? '')}</p>
+                  <p className="truncate text-sm font-medium">{String(a.name ?? a.external_id ?? a.id)}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {String(a.provider ?? '')}
+                    {a.shared ? ' · shared' : ''}
+                  </p>
                 </div>
+                <Button variant="outline" size="sm" onClick={() => setAssignmentsFor(a)}>
+                  Assignments
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {assignmentsFor && (
+        <AssignmentsDialog
+          account={assignmentsFor}
+          onOpenChange={(open) => !open && setAssignmentsFor(null)}
+        />
+      )}
     </div>
+  )
+}
+
+function AssignmentsDialog({
+  account,
+  onOpenChange,
+}: {
+  account: Row
+  onOpenChange: (o: boolean) => void
+}) {
+  const { activeEntityId, workspaces } = useWorkspace()
+  const queryClient = useQueryClient()
+  const [entity, setEntity] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const assignmentsKey = ['ws', activeEntityId, 'provider-accounts', account.id, 'assignments']
+
+  const assignmentsQuery = useQuery({
+    queryKey: assignmentsKey,
+    queryFn: () => api.get<ProviderAccountAssignment[]>(`/v1/workspaces/${activeEntityId}/provider-accounts/${account.id}/assignments`),
+    enabled: !!activeEntityId && !!account.id,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: () => api.post(`/v1/workspaces/${activeEntityId}/provider-accounts/${account.id}/assignments`, { entity }),
+    onSuccess: () => {
+      setEntity('')
+      setError(null)
+      void queryClient.invalidateQueries({ queryKey: assignmentsKey })
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to share account.'),
+  })
+
+  const revokeMutation = useMutation({
+    mutationFn: (assignmentId: string) => api.delete(`/v1/workspaces/${activeEntityId}/provider-accounts/${account.id}/assignments/${assignmentId}`),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: assignmentsKey }),
+  })
+
+  const targets = workspaces.filter((w) => w.id !== activeEntityId)
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Account assignments</DialogTitle>
+          <DialogDescription>Share this account with other workspaces.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            {(assignmentsQuery.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">Not shared with any workspace.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {(assignmentsQuery.data ?? []).map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="font-mono text-xs">{a.entity_id ?? '—'}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-destructive"
+                      onClick={() => revokeMutation.mutate(a.id)}
+                      aria-label="Revoke"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Share with workspace</Label>
+            <Select value={entity} onValueChange={setEntity}>
+              <SelectTrigger><SelectValue placeholder="Select workspace" /></SelectTrigger>
+              <SelectContent>
+                {targets.map((w) => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => addMutation.mutate()} disabled={!entity || addMutation.isPending}>
+            {addMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Share
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

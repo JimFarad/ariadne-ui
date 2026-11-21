@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Loader2, Plus, X } from 'lucide-react'
+import { Loader2, Pencil, Plus, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTable, type Column } from '@/components/data/DataTable'
 import { Button } from '@/components/ui/button'
@@ -65,6 +65,16 @@ export function InfrastructurePage() {
       ),
     },
     { key: 'cost', header: 'Cost', cell: (r) => formatMoney(r.monthly_cost, r.currency) },
+    {
+      key: '__actions',
+      header: '',
+      headerClassName: 'w-[60px]',
+      cell: (r) => (
+        <Button variant="ghost" size="icon-sm" onClick={() => setEditing(r)} aria-label="Edit resource">
+          <Pencil className="h-4 w-4" />
+        </Button>
+      ),
+    },
   ]
 
   const invalidate = () => {

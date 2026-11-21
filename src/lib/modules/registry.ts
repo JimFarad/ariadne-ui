@@ -28,6 +28,7 @@ import {
   Package,
   Receipt,
   ReceiptText,
+  ScrollText,
   Send,
   Server,
   ShieldAlert,
@@ -85,6 +86,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Realm roles', path: '/workspace/realm-roles', icon: ShieldCheck },
       { label: 'Modules', path: '/workspace/modules', icon: Blocks },
       { label: 'Storage policy', path: '/workspace/storage-policy', icon: HardDrive },
+      { label: 'SCIM provisioning', path: '/workspace/scim', icon: KeyRound },
+      { label: 'Audit logs', path: '/workspace/audit-logs', icon: ScrollText },
     ],
   },
   {

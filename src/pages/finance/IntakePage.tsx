@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Inbox, Loader2, Plus, RotateCw, X } from 'lucide-react'
+import { Inbox, Loader2, Plus, RotateCw, Trash2, X } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { StatusBadge } from '@/components/StatusBadge'
 import {
   Dialog,
@@ -21,12 +28,14 @@ import { LoadingSpinner } from '@/components/ui/spinner'
 import { useWorkspace } from '@/context/WorkspaceContext'
 import { api, ApiError } from '@/lib/api/client'
 import { formatDateTime } from '@/lib/utils'
-import type { InvoiceIntakeConfig, InvoiceIntakeMessage } from '@/types/api'
+import type { InvoiceIntakeConfig, InvoiceIntakeMessage, InvoiceIntakeSender } from '@/types/api'
 
 export function IntakePage() {
   const { activeEntityId } = useWorkspace()
   const queryClient = useQueryClient()
   const [createConfig, setCreateConfig] = useState(false)
+  const [editingConfig, setEditingConfig] = useState<InvoiceIntakeConfig | null>(null)
+  const [sendersFor, setSendersFor] = useState<InvoiceIntakeConfig | null>(null)
   const [selectedMessage, setSelectedMessage] = useState<InvoiceIntakeMessage | null>(null)
   const messagesQuery = useQuery({
     queryKey: ['ws', activeEntityId, 'invoice-intake-messages'],
@@ -128,6 +137,12 @@ export function IntakePage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <StatusBadge status={String(c.status ?? '')} />
+                    <Button variant="outline" size="sm" onClick={() => setSendersFor(c)}>
+                      Senders
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setEditingConfig(c)}>
+                      Edit
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => rotateConfig.mutate(c.id)}>
                       <RotateCw className="h-3.5 w-3.5" /> Rotate
                     </Button>
@@ -150,6 +165,12 @@ export function IntakePage() {
       </Tabs>
 
       {createConfig && <CreateConfigDialog onOpenChange={setCreateConfig} onSaved={invalidate} />}
+      {editingConfig && (
+        <EditConfigDialog config={editingConfig} onOpenChange={(open) => !open && setEditingConfig(null)} onSaved={invalidate} />
+      )}
+      {sendersFor && (
+        <SendersDialog config={sendersFor} onOpenChange={(open) => !open && setSendersFor(null)} />
+      )}
 
       <Dialog open={selectedMessage !== null} onOpenChange={(open) => !open && setSelectedMessage(null)}>
         <DialogContent className="sm:max-w-md">
@@ -225,6 +246,187 @@ function CreateConfigDialog({ onOpenChange, onSaved }: { onOpenChange: (o: boole
           <Button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}>
             {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Create
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function EditConfigDialog({
+  config,
+  onOpenChange,
+  onSaved,
+}: {
+  config: InvoiceIntakeConfig
+  onOpenChange: (o: boolean) => void
+  onSaved: () => void
+}) {
+  const { activeEntityId } = useWorkspace()
+  const [name, setName] = useState(config.name ?? '')
+  const [description, setDescription] = useState(config.description ?? '')
+  const [category, setCategory] = useState(config.category ?? '')
+  const [purpose, setPurpose] = useState(config.purpose ?? '')
+  const [trustPolicyMode, setTrustPolicyMode] = useState(config.trust_policy_mode ?? 'permissive')
+  const [maxAttachmentMb, setMaxAttachmentMb] = useState(config.max_attachment_mb != null ? String(config.max_attachment_mb) : '25')
+  const [error, setError] = useState<string | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.patch(`/v1/workspaces/${activeEntityId}/invoice-intake-configs/${config.id}`, {
+        name,
+        description: description || null,
+        category: category || null,
+        purpose: purpose || null,
+        trust_policy_mode: trustPolicyMode,
+        max_attachment_mb: maxAttachmentMb ? Number(maxAttachmentMb) : undefined,
+      }),
+    onSuccess: () => { onOpenChange(false); onSaved() },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to update configuration.'),
+  })
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Edit configuration</DialogTitle></DialogHeader>
+        <div className="grid max-h-[60vh] gap-4 overflow-y-auto">
+          <div className="space-y-1.5">
+            <Label htmlFor="ecf-name">Name</Label>
+            <Input id="ecf-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ecf-desc">Description</Label>
+            <Input id="ecf-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="ecf-cat">Category</Label>
+              <Input id="ecf-cat" value={category} onChange={(e) => setCategory(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ecf-purpose">Purpose</Label>
+              <Input id="ecf-purpose" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Trust policy</Label>
+              <Select value={trustPolicyMode} onValueChange={setTrustPolicyMode}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permissive">Permissive</SelectItem>
+                  <SelectItem value="strict">Strict</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ecf-max">Max attachment (MB)</Label>
+              <Input id="ecf-max" type="number" min={1} max={100} value={maxAttachmentMb} onChange={(e) => setMaxAttachmentMb(e.target.value)} />
+            </div>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}>
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SendersDialog({
+  config,
+  onOpenChange,
+}: {
+  config: InvoiceIntakeConfig
+  onOpenChange: (o: boolean) => void
+}) {
+  const { activeEntityId } = useWorkspace()
+  const queryClient = useQueryClient()
+  const [kind, setKind] = useState('address')
+  const [value, setValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const sendersKey = ['ws', activeEntityId, 'invoice-intake-configs', config.id, 'senders']
+
+  const sendersQuery = useQuery({
+    queryKey: sendersKey,
+    queryFn: () => api.get<InvoiceIntakeSender[]>(`/v1/workspaces/${activeEntityId}/invoice-intake-configs/${config.id}/senders`),
+    enabled: !!activeEntityId && !!config.id,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: () => api.post(`/v1/workspaces/${activeEntityId}/invoice-intake-configs/${config.id}/senders`, { kind, value }),
+    onSuccess: () => {
+      setValue('')
+      setError(null)
+      void queryClient.invalidateQueries({ queryKey: sendersKey })
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.detail : 'Unable to add sender.'),
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: (senderId: string) => api.delete(`/v1/workspaces/${activeEntityId}/invoice-intake-configs/${config.id}/senders/${senderId}`),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: sendersKey }),
+  })
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Trusted senders</DialogTitle>
+          <DialogDescription>Allowlist senders for {String(config.name ?? '')}.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            {(sendersQuery.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No trusted senders.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {(sendersQuery.data ?? []).map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-3 py-2">
+                    <div className="min-w-0">
+                      <span className="font-mono text-xs">{String(s.value ?? '')}</span>
+                      <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">{String(s.kind ?? '')}</span>
+                    </div>
+                    <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeMutation.mutate(s.id)} aria-label="Remove sender">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Kind</Label>
+              <Select value={kind} onValueChange={setKind}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="address">Address</SelectItem>
+                  <SelectItem value="domain">Domain</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2 space-y-1.5">
+              <Label htmlFor="is-value">Value</Label>
+              <Input id="is-value" value={value} onChange={(e) => setValue(e.target.value)} placeholder="billing@example.com" />
+            </div>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => addMutation.mutate()} disabled={!value.trim() || addMutation.isPending}>
+            {addMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Add
           </Button>
         </DialogFooter>
       </DialogContent>

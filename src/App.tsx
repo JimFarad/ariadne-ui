@@ -19,6 +19,8 @@ import { RealmsPage } from '@/pages/workspace/RealmsPage'
 import { RealmRolesPage } from '@/pages/workspace/RealmRolesPage'
 import { ModulesPage } from '@/pages/workspace/ModulesPage'
 import { StoragePolicyPage } from '@/pages/workspace/StoragePolicyPage'
+import { ScimConfigPage } from '@/pages/workspace/ScimConfigPage'
+import { AuditLogsPage } from '@/pages/workspace/AuditLogsPage'
 
 // Module pages are code-split so the initial shell stays lean.
 const sm = (name: string) => lazy(() => import('@/pages/simple-modules').then((m) => ({ default: m[name as keyof typeof m] })))
@@ -30,12 +32,9 @@ const IotPage = sm('IotPage')
 const ContactsPage = sm('ContactsPage')
 const CampaignsPage = sm('CampaignsPage')
 const AutomationPage = sm('AutomationPage')
-const DocumentsPage = sm('DocumentsPage')
 const MailAccountsPage = sm('MailAccountsPage')
-const SendersPage = sm('SendersPage')
 const TemplatesPage = sm('TemplatesPage')
 const BudgetsPage = sm('BudgetsPage')
-const ExpensesPage = sm('ExpensesPage')
 const VendorsPage = sm('VendorsPage')
 const CommunicationsPage = sm('CommunicationsPage')
 
@@ -47,13 +46,18 @@ const IncidentsPage = lazy(() => import('@/pages/IncidentsPage').then((m) => ({ 
 const IncidentDetailPage = lazy(() => import('@/pages/IncidentDetailPage').then((m) => ({ default: m.IncidentDetailPage })))
 const ProjectsPage = lazy(() => import('@/pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })))
 const ProjectDetailPage = lazy(() => import('@/pages/ProjectDetailPage').then((m) => ({ default: m.ProjectDetailPage })))
+const DocumentsPage = lazy(() => import('@/pages/DocumentsPage').then((m) => ({ default: m.DocumentsPage })))
+const DocumentDetailPage = lazy(() => import('@/pages/DocumentDetailPage').then((m) => ({ default: m.DocumentDetailPage })))
 const SecurityPage = lazy(() => import('@/pages/SecurityPage').then((m) => ({ default: m.SecurityPage })))
 const InvoicesPage = lazy(() => import('@/pages/finance/InvoicesPage').then((m) => ({ default: m.InvoicesPage })))
+const ExpensesPage = lazy(() => import('@/pages/finance/ExpensesPage').then((m) => ({ default: m.ExpensesPage })))
 const IntakePage = lazy(() => import('@/pages/finance/IntakePage').then((m) => ({ default: m.IntakePage })))
 const TransactionsPage = lazy(() => import('@/pages/finance/TransactionsPage').then((m) => ({ default: m.TransactionsPage })))
 const TokensPage = lazy(() => import('@/pages/TokensPage').then((m) => ({ default: m.TokensPage })))
 const ReportsPage = lazy(() => import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const DeliveriesPage = lazy(() => import('@/pages/email/DeliveriesPage').then((m) => ({ default: m.DeliveriesPage })))
+const EmailDeliveryDetailPage = lazy(() => import('@/pages/email/EmailDeliveryDetailPage').then((m) => ({ default: m.EmailDeliveryDetailPage })))
+const SendersPage = lazy(() => import('@/pages/email/SendersPage').then((m) => ({ default: m.SendersPage })))
 const ConnectionsPage = lazy(() => import('@/pages/providers/ProvidersPage').then((m) => ({ default: m.ConnectionsPage })))
 const ResourcesPage = lazy(() => import('@/pages/providers/ProvidersPage').then((m) => ({ default: m.ResourcesPage })))
 const AccountsPage = lazy(() => import('@/pages/providers/ProvidersPage').then((m) => ({ default: m.AccountsPage })))
@@ -80,6 +84,8 @@ const router = createBrowserRouter([
           { path: 'workspace/realm-roles', element: <RealmRolesPage /> },
           { path: 'workspace/modules', element: <ModulesPage /> },
           { path: 'workspace/storage-policy', element: <StoragePolicyPage /> },
+          { path: 'workspace/scim', element: <ScimConfigPage /> },
+          { path: 'workspace/audit-logs', element: <AuditLogsPage /> },
           { path: 'services', element: <ServicesPage /> },
           { path: 'infrastructure', element: <InfrastructurePage /> },
           { path: 'infrastructure/:id', element: <InfrastructureDetailPage /> },
@@ -96,6 +102,7 @@ const router = createBrowserRouter([
           { path: 'projects', element: <ProjectsPage /> },
           { path: 'projects/:id', element: <ProjectDetailPage /> },
           { path: 'documents', element: <DocumentsPage /> },
+          { path: 'documents/:id', element: <DocumentDetailPage /> },
           { path: 'automation', element: <AutomationPage /> },
           { path: 'security', element: <SecurityPage /> },
           { path: 'finance/vendors', element: <VendorsPage /> },
@@ -107,6 +114,7 @@ const router = createBrowserRouter([
           { path: 'email/senders', element: <SendersPage /> },
           { path: 'email/templates', element: <TemplatesPage /> },
           { path: 'email/deliveries', element: <DeliveriesPage /> },
+          { path: 'email/deliveries/:id', element: <EmailDeliveryDetailPage /> },
           { path: 'mail-accounts', element: <MailAccountsPage /> },
           { path: 'communications', element: <CommunicationsPage /> },
           { path: 'assets', element: <AssetsPage /> },

@@ -238,28 +238,6 @@ export function AutomationPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Documents                                                          */
-/* ------------------------------------------------------------------ */
-export function DocumentsPage() {
-  return (
-    <CrudPage<Row>
-      title="Documents"
-      noun="Document"
-      description="Documents with access grants."
-      path={(e) => `/v1/workspaces/${e}/documents`}
-      rowKey={(r) => String(r.id)}
-      columns={[
-        { key: 'title', header: 'Title', cell: (r) => <span className="font-medium">{String(r.title ?? '')}</span> },
-        { key: 'type', header: 'Type', cell: (r) => String(r.type ?? '—') },
-        { key: 'created_at', header: 'Created', cell: (r) => formatDateTime(String(r.created_at ?? '')) },
-      ]}
-      fields={[text('title', 'Title', { required: true }), text('type', 'Type'), { name: 'content', label: 'Content', type: 'textarea' }]}
-      emptyTitle="No documents"
-    />
-  )
-}
-
-/* ------------------------------------------------------------------ */
 /* Mail accounts                                                      */
 /* ------------------------------------------------------------------ */
 export function MailAccountsPage() {
@@ -278,30 +256,6 @@ export function MailAccountsPage() {
       ]}
       fields={[text('email', 'Email', { required: true }), text('domain', 'Domain', { required: true }), text('provider', 'Provider'), { name: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'disabled', label: 'Disabled' }] }]}
       emptyTitle="No mail accounts"
-    />
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Email senders                                                      */
-/* ------------------------------------------------------------------ */
-export function SendersPage() {
-  return (
-    <CrudPage<Row>
-      title="Email senders"
-      noun="Sender"
-      description="Sender identities used for outbound email."
-      path={(e) => `/v1/workspaces/${e}/email-senders`}
-      rowKey={(r) => String(r.id)}
-      canEdit={false}
-      columns={[
-        { key: 'name', header: 'Name', cell: (r) => <span className="font-medium">{String(r.name ?? '')}</span> },
-        { key: 'email', header: 'Email', cell: (r) => String(r.email ?? '—') },
-        { key: 'domain', header: 'Domain', cell: (r) => String(r.domain ?? '—') },
-        { key: 'provider', header: 'Provider', cell: (r) => String(r.provider ?? '—') },
-      ]}
-      fields={[text('name', 'Name', { required: true }), text('email', 'Email', { required: true }), text('provider', 'Provider'), text('domain', 'Domain')]}
-      emptyTitle="No senders"
     />
   )
 }
@@ -347,37 +301,6 @@ export function BudgetsPage() {
       ]}
       fields={[text('name', 'Name', { required: true }), text('period', 'Period'), text('currency', 'Currency', { placeholder: 'EUR' }), { name: 'amount', label: 'Amount', type: 'number', required: true }]}
       emptyTitle="No budgets"
-    />
-  )
-}
-
-/* ------------------------------------------------------------------ */
-/* Expenses                                                           */
-/* ------------------------------------------------------------------ */
-export function ExpensesPage() {
-  return (
-    <CrudPage<Row>
-      title="Expenses"
-      noun="Expense"
-      description="Tracked expenses."
-      path={(e) => `/v1/workspaces/${e}/expenses`}
-      rowKey={(r) => String(r.id)}
-      columns={[
-        { key: 'vendor', header: 'Vendor', cell: (r) => <span>{String(r.vendor ?? '—')}</span> },
-        { key: 'description', header: 'Description', cell: (r) => <span className="font-medium">{String(r.description ?? '') || '—'}</span> },
-        { key: 'amount', header: 'Amount', cell: (r) => formatMoney(String(r.amount ?? ''), String(r.currency ?? '')) },
-        { key: 'status', header: 'Status', cell: (r) => <StatusBadge status={String(r.status ?? '')} /> },
-        { key: 'date', header: 'Date', cell: (r) => String(r.date ?? '—') },
-      ]}
-      fields={[
-        { name: 'description', label: 'Description' },
-        text('vendor', 'Vendor id', { placeholder: 'Optional — vendor public id' }),
-        text('date', 'Date', { placeholder: 'YYYY-MM-DD' }),
-        text('currency', 'Currency', { placeholder: 'EUR' }),
-        { name: 'amount', label: 'Amount', type: 'number', required: true },
-        { name: 'tax_amount', label: 'Tax amount', type: 'number' },
-      ]}
-      emptyTitle="No expenses"
     />
   )
 }
