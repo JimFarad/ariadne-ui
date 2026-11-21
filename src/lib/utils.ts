@@ -14,15 +14,61 @@ export function shortId(id: string, head = 4, tail = 4): string {
 }
 
 /** Format an ISO 8601 timestamp for display. */
+export type TimeFormatPref = '12h' | '24h'
+export type DateFormatPref = 'DD/MM/YYYY' | 'DD-MM-YYYY' | 'YYYY-MM-DD' | 'MMM D, YYYY'
+
+interface DateTimePreferences {
+  timeFormat: TimeFormatPref
+  dateFormat: DateFormatPref
+}
+
+let dateTimePreferences: DateTimePreferences = { timeFormat: '24h', dateFormat: 'YYYY-MM-DD' }
+
+/** Set the global date/time presentation (driven by user preferences). */
+export function setDateTimePreferences(prefs: Partial<DateTimePreferences>) {
+  dateTimePreferences = { ...dateTimePreferences, ...prefs }
+}
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function formatDateParts(date: Date): string {
+  const day = pad2(date.getDate())
+  const month = pad2(date.getMonth() + 1)
+  const year = String(date.getFullYear())
+  switch (dateTimePreferences.dateFormat) {
+    case 'DD/MM/YYYY':
+      return `${day}/${month}/${year}`
+    case 'DD-MM-YYYY':
+      return `${day}-${month}-${year}`
+    case 'MMM D, YYYY':
+      return `${MONTHS_SHORT[date.getMonth()]} ${date.getDate()}, ${year}`
+    case 'YYYY-MM-DD':
+    default:
+      return `${year}-${month}-${day}`
+  }
+}
+
+function formatTimeParts(date: Date): string {
+  const minutes = pad2(date.getMinutes())
+  if (dateTimePreferences.timeFormat === '12h') {
+    const hours24 = date.getHours()
+    const hours12 = hours24 % 12 || 12
+    const suffix = hours24 < 12 ? 'AM' : 'PM'
+    return `${pad2(hours12)}:${minutes} ${suffix}`
+  }
+  return `${pad2(date.getHours())}:${minutes}`
+}
+
+/** Format an ISO 8601 timestamp as a date only. */
 export function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+  return formatDateParts(date)
 }
 
 /** Format an ISO 8601 timestamp including time. */
@@ -30,13 +76,7 @@ export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  return `${formatDateParts(date)} ${formatTimeParts(date)}`
 }
 
 /** Relative time, e.g. "3m ago". */

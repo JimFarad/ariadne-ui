@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api/client'
+import { setDateTimePreferences, type DateFormatPref, type TimeFormatPref } from '@/lib/utils'
 import { useAuth } from './AuthContext'
 import { useTheme } from './ThemeContext'
 
@@ -45,6 +46,18 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
     if (theme === 'light' || theme === 'dark') setTheme(theme)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preferences.theme])
+
+  // Apply date/time presentation preferences globally.
+  useEffect(() => {
+    const timeFormat: TimeFormatPref = preferences.time_format === '12h' ? '12h' : '24h'
+    const dateFormat: DateFormatPref =
+      preferences.date_format === 'DD/MM/YYYY' ||
+      preferences.date_format === 'DD-MM-YYYY' ||
+      preferences.date_format === 'MMM D, YYYY'
+        ? preferences.date_format
+        : 'YYYY-MM-DD'
+    setDateTimePreferences({ timeFormat, dateFormat })
+  }, [preferences.time_format, preferences.date_format])
 
   const favoriteEntityIds = useMemo(() => {
     const list = preferences.favorite_entities ?? []

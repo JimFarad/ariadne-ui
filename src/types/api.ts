@@ -134,8 +134,13 @@ export interface Notification {
   [key: string]: unknown
 }
 
+export interface NotificationCategory {
+  slug: string
+  label: string
+}
+
 export interface NotificationPreferences {
-  categories: string[]
+  categories: NotificationCategory[]
   enabled: string[]
   [key: string]: unknown
 }

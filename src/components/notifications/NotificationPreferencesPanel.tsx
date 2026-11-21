@@ -1,18 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { Button } from '@/components/ui/button'
 import { Loader2 } from 'lucide-react'
 import { api, ApiError } from '@/lib/api/client'
 import type { NotificationPreferences } from '@/types/api'
-
-const CATEGORY_LABELS: Record<string, string> = {
-  provider: 'Providers',
-  domains: 'Domains & DNS',
-  finance: 'Finance',
-  infrastructure: 'Infrastructure',
-  workspace: 'Workspace',
-}
 
 /**
  * Toggle panel for notification categories. `entityId` null = global
@@ -65,19 +56,18 @@ export function NotificationPreferencesPanel({ entityId }: { entityId: string | 
           <p className="py-4 text-sm text-muted-foreground">No categories available.</p>
         ) : (
           categories.map((category) => {
-            const label = CATEGORY_LABELS[category] ?? category
-            const isOn = enabled.has(category)
+            const isOn = enabled.has(category.slug)
             return (
-              <div key={category} className="flex items-center justify-between gap-4 py-2">
+              <div key={category.slug} className="flex items-center justify-between gap-4 py-2">
                 <div>
-                  <p className="text-sm font-medium">{label}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{category}</p>
+                  <p className="text-sm font-medium">{category.label}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{category.slug}</p>
                 </div>
                 <Switch
                   checked={isOn}
                   disabled={mutation.isPending}
-                  onCheckedChange={(on) => toggle(category, on)}
-                  aria-label={`Toggle ${label}`}
+                  onCheckedChange={(on) => toggle(category.slug, on)}
+                  aria-label={`Toggle ${category.label}`}
                 />
               </div>
             )

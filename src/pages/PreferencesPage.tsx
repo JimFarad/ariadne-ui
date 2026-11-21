@@ -58,8 +58,8 @@ export function PreferencesPage() {
       await updatePreferences({
         theme: theme || null,
         language: language || null,
-        time_format: timeFormat || null,
-        date_format: dateFormat || null,
+        time_format: timeFormat || '24h',
+        date_format: dateFormat || 'YYYY-MM-DD',
         default_page: defaultPage || null,
         favorite_entities: favorites,
       })
@@ -102,12 +102,32 @@ export function PreferencesPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="pf-date">Date format</Label>
-              <Input id="pf-date" value={dateFormat} onChange={(e) => { setDateFormat(e.target.value); setSaved(false) }} placeholder="YYYY-MM-DD" />
+              <Label>Date format</Label>
+              <Select
+                value={dateFormat || 'YYYY-MM-DD'}
+                onValueChange={(v) => { setDateFormat(v); setSaved(false) }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="YYYY-MM-DD">2026-02-14</SelectItem>
+                  <SelectItem value="DD/MM/YYYY">14/02/2026</SelectItem>
+                  <SelectItem value="DD-MM-YYYY">14-02-2026</SelectItem>
+                  <SelectItem value="MMM D, YYYY">Feb 14, 2026</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pf-time">Time format</Label>
-              <Input id="pf-time" value={timeFormat} onChange={(e) => { setTimeFormat(e.target.value); setSaved(false) }} placeholder="HH:mm" />
+              <Label>Time format</Label>
+              <Select
+                value={timeFormat || '24h'}
+                onValueChange={(v) => { setTimeFormat(v); setSaved(false) }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24h">24-hour (13:00)</SelectItem>
+                  <SelectItem value="12h">12-hour (01:00 PM)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
